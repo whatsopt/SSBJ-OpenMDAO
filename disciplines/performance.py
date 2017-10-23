@@ -5,49 +5,51 @@ Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 """
 from __future__ import print_function
 import numpy as np
-from openmdao.api import Component
+from openmdao.api import ExplicitComponent
 from common import PolynomialFunction
 # pylint: disable=C0103
 
-class Performance(Component):
+class Performance(ExplicitComponent):
 
     def __init__(self, scalers):
         super(Performance, self).__init__()
-        # Global Design Variable z=(t/c,h,M,AR,Lambda,Sref)
-        self.add_param('z', val=np.zeros(6))
-        # Local Design Variable x_per=null
-        # Coupling parameters
-        self.add_param('WT', val=1.0)
-        self.add_param('WF', val=1.0)
-        self.add_param('fin', val=1.0)
-        self.add_param('SFC', val=1.0)
-        # Coupling output
-        self.add_output('R', val=1.0)
         # scalers values
         self.scalers = scalers
 
-    def solve_nonlinear(self, params, unknowns, resids):
+    def setup(self):
+        # Global Design Variable z=(t/c,h,M,AR,Lambda,Sref)
+        self.add_input('z', val=np.ones(6))
+        # Local Design Variable x_per=null
+        # Coupling parameters
+        self.add_input('WT', val=1.0)
+        self.add_input('WF', val=1.0)
+        self.add_input('fin', val=1.0)
+        self.add_input('SFC', val=1.0)
+        # Coupling output
+        self.add_output('R', val=1.0)
+        self.declare_partials('*', '*')
+
+    def compute(self, inputs, outputs):
         #Variables scaling
-        Z = params['z']*self.scalers['z']
-        fin = params['fin']*self.scalers['fin']
-        SFC = params['SFC']*self.scalers['SFC']
-        WT = params['WT']*self.scalers['WT']
-        WF = params['WF']*self.scalers['WF']
+        Z = inputs['z']*self.scalers['z']
+        fin = inputs['fin']*self.scalers['fin']
+        SFC = inputs['SFC']*self.scalers['SFC']
+        WT = inputs['WT']*self.scalers['WT']
+        WF = inputs['WF']*self.scalers['WF']
         if Z[1] <= 36089.:
             theta = 1.0-6.875E-6*Z[1]
         else:
             theta = 0.7519
         R = 661.0*np.sqrt(theta)*Z[2]*fin/SFC*np.log(abs(WT/(WT-WF)))
-        unknowns['R'] = R/self.scalers['R']
+        outputs['R'] = R/self.scalers['R']
 
-    def linearize(self, params, unknowns, resids):
-        J = {}
+    def compute_partials(self, inputs, J):
         #Changement de variable
-        Z = params['z']*self.scalers['z']
-        fin = params['fin']*self.scalers['fin']
-        SFC = params['SFC']*self.scalers['SFC']
-        WT = params['WT']*self.scalers['WT']
-        WF = params['WF']*self.scalers['WF']
+        Z = inputs['z']*self.scalers['z']
+        fin = inputs['fin']*self.scalers['fin']
+        SFC = inputs['SFC']*self.scalers['SFC']
+        WT = inputs['WT']*self.scalers['WT']
+        WF = inputs['WF']*self.scalers['WF']
         if Z[1] <= 36089:
             theta = 1.0-6.875E-6*Z[1]
         else:
@@ -70,13 +72,6 @@ class Performance(Component):
         J['R', 'WT'] = np.array([[dRdWT/self.scalers['R']*self.scalers['WT']]])
         dRdWF = 661.0*np.sqrt(theta)*Z[2]*fin/SFC*1.0/(WT-WF)
         J['R', 'WF'] = np.array([[dRdWF/self.scalers['R']*self.scalers['WF']]])
-        ########Rm
-        J['Rm', 'z'] = -J['R', 'z']
-        J['Rm', 'fin'] = -J['R', 'fin']
-        J['Rm', 'SFC'] = -J['R', 'SFC']
-        J['Rm', 'WT'] = -J['R', 'WT']
-        J['Rm', 'WF'] = -J['R', 'WF']
-        return J
 
 if __name__ == "__main__": # pragma: no cover
 
@@ -96,19 +91,6 @@ if __name__ == "__main__": # pragma: no cover
     top.root.add('WF_in', IndepVarComp('WF', 2.66), promotes=['*'])
     top.root.add('fin_in', IndepVarComp('fin', 1.943), promotes=['*'])
     top.root.add('SFC_in', IndepVarComp('SFC', 0.8345), promotes=['*'])
-    pf = PolynomialFunction()
-    top.root.add('Per1', Performance(scalers,pf), promotes=['*'])
+    top.root.add('Per1', Performance(scalers), promotes=['*'])
     top.setup()
-    top.run()
-    J1 = top.root.Per1.linearize(top.root.Per1.params,
-                                top.root.Per1.unknowns,
-                                top.root.Per1.resids)
-    J2 = top.root.Per1.fd_jacobian(top.root.Per1.params,
-                                   top.root.Per1.unknowns,
-                                   top.root.Per1.resids)
-    errAbs = []
-    for i in range(len(J2.keys())):
-        errAbs.append(J1[J2.keys()[i]] - J2[J2.keys()[i]])
-        print ('ErrAbs_'+str(J2.keys()[i])+'=',
-               J1[J2.keys()[i]]-J2[J2.keys()[i]])
-        print (J1[J2.keys()[i]].shape == J2[J2.keys()[i]].shape)
+    top.check_partials(compact_print=True)

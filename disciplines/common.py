@@ -23,7 +23,6 @@ class PolynomialFunction(object):
     d = dict()
 
     def eval(self, S_new, flag, S_bound, var, deriv=False):
-
         if var not in self.d.keys():
             self.d[var] = list(S_new)
 

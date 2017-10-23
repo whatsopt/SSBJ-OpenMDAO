@@ -5,38 +5,41 @@ Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 """
 from __future__ import print_function
 import numpy as np
-from openmdao.api import Component
+from openmdao.api import ExplicitComponent
 from common import PolynomialFunction, WFO, WO, NZ
 # pylint: disable=C0103
 
-class Structure(Component):
+class Structure(ExplicitComponent):
 
-    def __init__(self, scalers, polyFunc):
+    def __init__(self, scalers, pfunc):
         super(Structure, self).__init__()
+        # scalers values
+        self.scalers = scalers
+        # Polynomial function initialized with given constant values
+        self.pf = pfunc
+
+    def setup(self):
         # Global Design Variable z=(t/c,h,M,AR,Lambda,Sref)
-        self.add_param('z', val=np.zeros(6))
+        self.add_input('z', val=np.zeros(6))
 
         # Local Design Variable x_str=(lambda,section caisson)
-        self.add_param('x_str', val=np.zeros(2))
+        self.add_input('x_str', val=np.zeros(2))
 
         # Coupling parameters
-        self.add_param('L', val=1.0)
-        self.add_param('WE', val=1.0)
+        self.add_input('L', val=1.0)
+        self.add_input('WE', val=1.0)
         # Coupling output
         self.add_output('WT', val=1.0)
         self.add_output('Theta', val=1.0)
         self.add_output('WF', val=1.0)
         self.add_output('sigma', val=np.zeros(5))
-        # scalers values
-        self.scalers = scalers
-        # Polynomial function initialized with given constant values
-        self.pf = polyFunc
+        self.declare_partials('*', '*')
 
-    def solve_nonlinear(self, params, unknowns, resids):
+    def compute(self, inputs, outputs):
         #Variables scaling
-        Z = params['z']*self.scalers['z']
-        Xstr = params['x_str']*self.scalers['x_str']
-        L = params['L']*self.scalers['L']
+        Z = inputs['z']*self.scalers['z']
+        Xstr = inputs['x_str']*self.scalers['x_str']
+        L = inputs['L']*self.scalers['L']
         #Computation
         t = Z[0]*Z[5]/(np.sqrt(abs(Z[5]*Z[3])))
         b = np.sqrt(abs(Z[5]*Z[3]))/2.0
@@ -53,7 +56,7 @@ class Structure(Component):
                     / abs(np.cos(Z[4]*np.pi/180.)))
         WFW = 5.0/18.0 * abs(Z[5]) * 2.0/3.0 * t * 42.5
         WF = WFW + WFO
-        WT = WO + WW + WF + params['WE']*self.scalers['WE']
+        WT = WO + WW + WF + inputs['WE']*self.scalers['WE']
         Sigma0 = self.pf.eval([Z[0], L, Xstr[1], b, R],
                               [4, 1, 4, 1, 1], [0.1]*5, "sigma[1]")
         Sigma1 = self.pf.eval([Z[0], L, Xstr[1], b, R],
@@ -65,25 +68,23 @@ class Structure(Component):
         Sigma4 = self.pf.eval([Z[0], L, Xstr[1], b, R],
                               [4, 1, 4, 1, 1], [0.30]*5, "sigma[5]")
         #Unknowns
-        unknowns['Theta'] = Theta/self.scalers['Theta']
-        unknowns['WF'] = WF/self.scalers['WF']
-        unknowns['WT'] = WT/self.scalers['L']
-        unknowns['sigma'][0] = Sigma0/self.scalers['sigma'][0]
-        unknowns['sigma'][1] = Sigma1/self.scalers['sigma'][1]
-        unknowns['sigma'][2] = Sigma2/self.scalers['sigma'][2]
-        unknowns['sigma'][3] = Sigma3/self.scalers['sigma'][3]
-        unknowns['sigma'][4] = Sigma4/self.scalers['sigma'][4]
+        outputs['Theta'] = Theta/self.scalers['Theta']
+        outputs['WF'] = WF/self.scalers['WF']
+        outputs['WT'] = WT/self.scalers['L']
+        outputs['sigma'][0] = Sigma0/self.scalers['sigma'][0]
+        outputs['sigma'][1] = Sigma1/self.scalers['sigma'][1]
+        outputs['sigma'][2] = Sigma2/self.scalers['sigma'][2]
+        outputs['sigma'][3] = Sigma3/self.scalers['sigma'][3]
+        outputs['sigma'][4] = Sigma4/self.scalers['sigma'][4]
 
-    def linearize(self, params, unknowns, resids):
+    def compute_partials(self, inputs, J):
         #Variables scaling
-        Z = params['z']*self.scalers['z']
-        Xstr = params['x_str']*self.scalers['x_str']
-        L = params['L']*self.scalers['L']
+        Z = inputs['z']*self.scalers['z']
+        Xstr = inputs['x_str']*self.scalers['x_str']
+        L = inputs['L']*self.scalers['L']
         #Uncomment to use Fo1=pf(x)
         Fo1 = self.pf.eval([Xstr[1]], [1], [.008], "Fo1")
         #Fo1=1.0
-        """ Jacobian for Structure discipline """
-        J = {}
         ######################WT#############################
         dWtdlambda = 0.1*Fo1/np.cos(Z[4]*np.pi/180.)*0.0051 \
             *(abs(L)*NZ)**0.557*abs(Z[5])**0.649 \
@@ -103,8 +104,8 @@ class Structure(Component):
                    + Aij[0, 0]*dSxdx*S_shifted[0, 0])
         # if Fo1=1.0
         #dWtdx=0.0
-        J['WT', 'x_str'] = np.array([[dWtdlambda/self.scalers['L'],
-                                      dWtdx/self.scalers['L']]])*self.scalers['x_str']
+        val = np.append(dWtdlambda/self.scalers['L'], dWtdx/self.scalers['L'])
+        J['WT', 'x_str'] = np.array([val])*self.scalers['x_str']
         dWTdtc = -0.4*Fo1/np.cos(Z[4]*np.pi/180.)*0.0051 \
             * abs(L*NZ)**0.557 * abs(Z[5])**0.649 \
             * abs(Z[3])**0.5*abs(Z[0])**(-1.4)*abs(1.0+Xstr[0])**0.1 \
@@ -124,12 +125,13 @@ class Structure(Component):
             * abs(L*NZ)**0.557*abs(Z[5])**-0.251 \
             *abs(Z[3])**0.5*abs(Z[0])**(-0.4)*abs(1.0+Xstr[0])**0.1 \
             + 637.5/54.*Z[5]**(0.5)*Z[0]/np.sqrt(Z[3])
-        J['WT', 'z'] = np.array([[dWTdtc/self.scalers['L'],
-                                  dWTdh/self.scalers['L'],
+        val = np.append(dWTdtc/self.scalers['L'],
+                                  [dWTdh/self.scalers['L'],
                                   dWTdM/self.scalers['L'],
                                   dWTdAR/self.scalers['L'],
                                   dWTdLambda/self.scalers['L'],
-                                  dWTdSref/self.scalers['L']]])*self.scalers['z']               
+                                  dWTdSref/self.scalers['L']])
+        J['WT', 'z'] = np.array([val])*self.scalers['z']               
         dWTdL = 0.557*Fo1/np.cos(Z[4]*np.pi/180.)*0.0051 * abs(L)**-0.443 \
             *NZ**0.557* abs(Z[5])**0.649 * abs(Z[3])**0.5 \
             * abs(Z[0])**(-0.4) * abs(1.0+Xstr[0])**0.1 * (0.1875*abs(Z[5]))**0.1    
@@ -232,7 +234,8 @@ class Structure(Component):
         ###############sigma###############################
         b = np.sqrt(abs(Z[5]*Z[3]))/2.0
         R = (1.0+2.0*Xstr[0])/(3.0*(1.0+Xstr[0]))
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        s_new = np.append(Z[0], [L, Xstr[1], b, R])
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.1]*5,
                                           "sigma[1]", deriv=True)
         if R/self.pf.d['sigma[1]'][4]>=0.75 and R/self.pf.d['sigma[1]'][4]<=1.25:								  
@@ -256,7 +259,7 @@ class Structure(Component):
             + Aij[3, 2]*S_shifted[0, 3]*dSxdx \
             + Aij[4, 2]*S_shifted[0, 4]*dSxdx
 
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.15]*5,
                                           "sigma[2]", deriv=True)										  
         if R/self.pf.d['sigma[2]'][4]>=0.75 and R/self.pf.d['sigma[2]'][4]<=1.25:								  
@@ -281,7 +284,7 @@ class Structure(Component):
             + Aij[3, 2]*S_shifted[0, 3]*dSxdx \
             + Aij[4, 2]*S_shifted[0, 4]*dSxdx
 
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.2]*5,
                                           "sigma[3]", deriv=True)
         if R/self.pf.d['sigma[3]'][4]>=0.75 and R/self.pf.d['sigma[3]'][4]<=1.25:								  
@@ -305,7 +308,7 @@ class Structure(Component):
             + Aij[3, 2]*S_shifted[0, 3]*dSxdx \
             + Aij[4, 2]*S_shifted[0, 4]*dSxdx
 
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.25]*5,
                                           "sigma[4]", deriv=True)
         if R/self.pf.d['sigma[4]'][4]>=0.75 and R/self.pf.d['sigma[4]'][4]<=1.25:								  
@@ -329,7 +332,7 @@ class Structure(Component):
             + Aij[1, 2]*S_shifted[0, 1]*dSxdx \
             + Aij[3, 2]*S_shifted[0, 3]*dSxdx \
             + Aij[4, 2]*S_shifted[0, 4]*dSxdx
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.3]*5,
                                           "sigma[5]", deriv=True)
         if R/self.pf.d['sigma[5]'][4]>=0.75 and R/self.pf.d['sigma[5]'][4]<=1.25:								  
@@ -650,10 +653,8 @@ class Structure(Component):
 
         J['sigma','WE'] = np.zeros((5, 1))
 
-        return J
-
-
 if __name__ == "__main__": # pragma: no cover
+
     from openmdao.api import Component, Problem, Group, IndepVarComp
     scalers = {}
     scalers['z'] = np.array([0.05, 45000., 1.6, 5.5, 55.0, 1000.0])
@@ -666,27 +667,13 @@ if __name__ == "__main__": # pragma: no cover
     scalers['sigma'] = np.array([1.12255, 1.08170213, 1.0612766,
                                  1.04902128, 1.04085106])
     top=Problem()
-    top.root=Group()
-    top.root.add('z_in', IndepVarComp('z',
+    top.model.add_subsystem('z_in', IndepVarComp('z',
                                       np.array([1.2  ,  1.333,  0.875,  0.45 ,  1.27 ,  1.5])),
                  promotes=['*'])
-    top.root.add('x_str_in', IndepVarComp('x_str', np.array([1.6, 0.75])),
+    top.model.add_subsystem('x_str_in', IndepVarComp('x_str', np.array([1.6, 0.75])),
                  promotes=['*'])
-    top.root.add('L_in', IndepVarComp('L', 0.888), promotes=['*'])
-    top.root.add('WE_in', IndepVarComp('WE', 1.49), promotes=['*'])
-    pf=PolynomialFunction()
-    top.root.add('Str1', Structure(scalers,pf), promotes=['*'])
+    top.model.add_subsystem('L_in', IndepVarComp('L', 0.888), promotes=['*'])
+    top.model.add_subsystem('WE_in', IndepVarComp('WE', 1.49), promotes=['*'])
+    top.model.add_subsystem('Str1', Structure(scalers, PolynomialFunction()), promotes=['*'])
     top.setup()
-
-    top.run()
-    J1=top.root.Str1.linearize(top.root.Str1.params,
-                              top.root.Str1.unknowns,
-                              top.root.Str1.resids)
-    J2=top.root.Str1.fd_jacobian(top.root.Str1.params,
-                                 top.root.Str1.unknowns,
-                                 top.root.Str1.resids)
-    errAbs=[]
-    for i in range(len(J2.keys())):
-        errAbs.append(J1[J2.keys()[i]]-J2[J2.keys()[i]])
-        print ('ErrAbs_'+str(J2.keys()[i])+'=',J1[J2.keys()[i]]-J2[J2.keys()[i]])
-        print (J1[J2.keys()[i]].shape==J2[J2.keys()[i]].shape)
+    top.check_partials(compact_print=True)

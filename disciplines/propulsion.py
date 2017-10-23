@@ -5,60 +5,62 @@ Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 """
 from __future__ import print_function
 import numpy as np
-from openmdao.api import Component
+from openmdao.api import ExplicitComponent
 from common import PolynomialFunction, WBE
 # pylint: disable=C0103
 
-class Propulsion(Component):
+class Propulsion(ExplicitComponent):
 
     def __init__(self, scalers, pfunc):
         super(Propulsion, self).__init__()
+        # scalers values
+        self.scalers = scalers
+        # Polynomial function initialized with given constant values
+        self.pf = pfunc
+
+    def setup(self):
         # Global Design Variable z=(t/c,h,M,AR,Lambda,Sref)
-        self.add_param('z', val=np.zeros(6))
+        self.add_input('z', val=np.ones(6))
         # Local Design Variable x_pro=T
-        self.add_param('x_pro', val=1.0)
+        self.add_input('x_pro', val=1.0)
         # Coupling parameters
-        self.add_param('D', val=1.0)
+        self.add_input('D', val=1.0)
         # Coupling output
         self.add_output('SFC', val=1.0)
         self.add_output('WE', val=1.0)
         self.add_output('ESF', val=1.0)
         self.add_output('DT', val=1.0)
         self.add_output('Temp', val=1.0)
-        # scalers values
-        self.scalers = scalers
-        # Polynomial function initialized with given constant values
-        self.pf = pfunc
+        self.declare_partials('*', '*')
 
-    def solve_nonlinear(self, params, unknowns, resids):
+    def compute(self, inputs, outputs):
         #Variables scaling
-        Z = params['z']*self.scalers['z']
-        Xpro = params['x_pro']*self.scalers['x_pro']
-        #print("Z={} Xpro={}".format(params['z'], params['x_pro'])) 
+        Z = inputs['z']*self.scalers['z']
+        Xpro = inputs['x_pro']*self.scalers['x_pro']
+        #print("Z={} Xpro={}".format(inputs['z'], inputs['x_pro'])) 
         Tbar = abs(Xpro) * 16168.6
-        unknowns['Temp'] = self.pf.eval(
+        outputs['Temp'] = self.pf.eval(
             [Z[2], Z[1], abs(Xpro)],
             [2, 4, 2], [.25]*3, "Temp")/self.scalers['Temp']
-        ESF = (params['D']*self.scalers['D']/3.0)/Tbar
-        unknowns['ESF'] = ESF/self.scalers['ESF']
+        ESF = (inputs['D']*self.scalers['D']/3.0)/Tbar
+        outputs['ESF'] = ESF/self.scalers['ESF']
         SFC = 1.1324 + 1.5344*Z[2] - 3.2956E-05*Z[1] - 1.6379E-04*Tbar \
             - 0.31623*Z[2]**2 + 8.2138E-06*Z[2]*Z[1] - 10.496E-5*Tbar*Z[2] \
             - 8.574E-11*Z[1]**2 + 3.8042E-9*Tbar*Z[1] + 1.06E-8*Tbar**2
-        unknowns['SFC'] = SFC/self.scalers['SFC']
+        outputs['SFC'] = SFC/self.scalers['SFC']
         WE = 3.0*WBE*abs(ESF)**1.05
-        unknowns['WE'] = WE/self.scalers['WE']
+        outputs['WE'] = WE/self.scalers['WE']
         TUAbar = 11484.0 + 10856.0 * Z[2] - 0.50802 * Z[1] \
             + 3200.2*(Z[2]**2) - 0.29326 * Z[2] * Z[1] + 6.8572E-6 * Z[1]**2
         DT = Tbar/TUAbar - 1.0
-        unknowns['DT'] = DT/self.scalers['DT']
+        outputs['DT'] = DT/self.scalers['DT']
 
-    def linearize(self, params, unknowns, resids):
-        J = {}
+    def compute_partials(self, inputs, J):
         #Changement de variable
-        Z = params['z']*self.scalers['z']
-        Xpro = params['x_pro']*self.scalers['x_pro']
+        Z = inputs['z']*self.scalers['z']
+        Xpro = inputs['x_pro']*self.scalers['x_pro']
         Tbar = abs(Xpro) * 16168.6
-        ESF = (params['D']*self.scalers['D']/3.0)/Tbar
+        ESF = (inputs['D']*self.scalers['D']/3.0)/Tbar
         TUAbar = 11484.0 + 10856.0 * Z[2] - 0.50802 * Z[1] \
             + 3200.2 * Z[2]**2 - 0.29326 * Z[2] * Z[1] + 6.8572E-6 * Z[1]**2
         ##############SFC
@@ -72,7 +74,7 @@ class Propulsion(Component):
         J['SFC', 'z'][0, 2] = dSFCdM/self.scalers['SFC']*self.scalers['z'][2]
         J['SFC', 'D'] = np.array([[0]])
         ###############ESF
-        dESFdT = (-params['D']*self.scalers['D']/3.0)/(16168.6*Xpro**2)
+        dESFdT = (-inputs['D']*self.scalers['D']/3.0)/(16168.6*Xpro**2)
         J['ESF', 'x_pro'] = np.array(
             [[dESFdT/self.scalers['ESF']*self.scalers['x_pro']]])
         J['ESF', 'z'] = np.zeros((1, 6))
@@ -138,24 +140,10 @@ if __name__ == "__main__": # pragma: no cover
     scalers['DT'] = 0.278366
     scalers['D'] = 12193.7018
     top = Problem()
-    top.root = Group()
-    top.root.add('z_in', IndepVarComp('z', np.array([1.2  ,  1.333,  0.875,  0.45 ,  1.27 ,  1.5])),
-                 promotes=['*'])
-    top.root.add('x_pro_in', IndepVarComp('x_pro', 0.3126), promotes=['*'])
-    top.root.add('D_in', IndepVarComp('D', 0.457), promotes=['*'])
-    pf = PolynomialFunction()
-    top.root.add('Pro1', Propulsion(scalers,pf), promotes=['*'])
+    top.model.add_subsystem('z_in', IndepVarComp('z', np.array([1.2  ,  1.333,  0.875,  0.45 ,  1.27 ,  1.5])),
+                            promotes=['*'])
+    top.model.add_subsystem('x_pro_in', IndepVarComp('x_pro', 0.3126), promotes=['*'])
+    top.model.add_subsystem('D_in', IndepVarComp('D', 0.457), promotes=['*'])
+    top.model.add_subsystem('Pro1', Propulsion(scalers, PolynomialFunction()), promotes=['*'])
     top.setup()
-    top.run()
-    J1 = top.root.Pro1.linearize(top.root.Pro1.params,
-                                top.root.Pro1.unknowns,
-                                top.root.Pro1.resids)
-    J2 = top.root.Pro1.fd_jacobian(top.root.Pro1.params,
-                                   top.root.Pro1.unknowns,
-                                   top.root.Pro1.resids)
-    errAbs = []
-    for i in range(len(J2.keys())):
-        errAbs.append(J1[J2.keys()[i]] - J2[J2.keys()[i]])
-        print ('ErrAbs_'+str(J2.keys()[i])+'=',
-               J1[J2.keys()[i]]-J2[J2.keys()[i]])
-        print (J1[J2.keys()[i]].shape == J2[J2.keys()[i]].shape)
+    top.check_partials(compact_print=True)
