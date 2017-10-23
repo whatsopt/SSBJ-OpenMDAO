@@ -141,22 +141,21 @@ class Structure(ExplicitComponent):
         ######################WF#############################
         dWFdlambda = 0.0
         dWFdx = 0.0
-        J['WF', 'x_str'] = np.array([[dWFdlambda/self.scalers['WF'],
-                                      dWFdx/self.scalers['WF']]]) \
-            *self.scalers['x_str']
+        val = np.append(dWFdlambda/self.scalers['WF'], dWFdx/self.scalers['WF'])
+        J['WF', 'x_str'] = np.array([val]) *self.scalers['x_str']
         dWFdtc = 212.5/27.*Z[5]**(3.0/2.0)/np.sqrt(Z[3])
         dWFdh = 0.0
         dWFdM = 0.0
         dWFdAR = 212.5/27.*Z[5]**(3.0/2.0) * Z[0] * -0.5*Z[3]**(-3.0/2.0)
         dWFdLambda = 0.0
         dWFdSref = 637.5/54.*Z[5]**(0.5)*Z[0]/np.sqrt(Z[3])
-        J['WF', 'z'] = np.array([[dWFdtc/self.scalers['WF'],
-                                  dWFdh/self.scalers['WF'],
+        val=np.append(dWFdtc/self.scalers['WF'],
+                                  [dWFdh/self.scalers['WF'],
                                   dWFdM/self.scalers['WF'],
                                   dWFdAR/self.scalers['WF'],
                                   dWFdLambda/self.scalers['WF'],
-                                  dWFdSref/self.scalers['WF']]])\
-            *self.scalers['z']
+                                  dWFdSref/self.scalers['WF']])
+        J['WF', 'z'] = np.array([val])*self.scalers['z']
         dWFdL = 0.0
         J['WF', 'L'] = np.array([[dWFdL]])/self.scalers['WF']*self.scalers['L']
         dWFdWE = 0.0
@@ -185,8 +184,8 @@ class Structure(ExplicitComponent):
             + Aij[1, 0]*S_shifted[0, 1]*dSxdx \
             + Aij[2, 0]*S_shifted[0, 2]*dSxdx \
             + Aij[3, 0]*S_shifted[0, 3]*dSxdx
-        J['Theta', 'x_str'] = np.array([[dThetadlambda[0, 0]/self.scalers['Theta'],
-                                         dThetadx[0, 0]/self.scalers['Theta']]])\
+        J['Theta', 'x_str'] = np.array([np.append(dThetadlambda[0, 0]/self.scalers['Theta'],
+                                         dThetadx[0, 0]/self.scalers['Theta'])])\
             *self.scalers['x_str']
         dThetadtc = 0.0
         dThetadh = 0.0
@@ -211,12 +210,12 @@ class Structure(ExplicitComponent):
             + Aij[2, 1]*S_shifted[0, 2]*dSbdSref \
             + Aij[3, 1]*S_shifted[0, 3]*dSbdSref
 
-        J['Theta', 'z'] = np.array([[dThetadtc/self.scalers['Theta'],
-                                     dThetadh/self.scalers['Theta'],
+        J['Theta', 'z'] = np.array([np.append(dThetadtc/self.scalers['Theta'],
+                                     [dThetadh/self.scalers['Theta'],
                                      dThetadM/self.scalers['Theta'],
                                      dThetadAR/self.scalers['Theta'],
                                      dThetadLambda/self.scalers['Theta'],
-                                     dThetadSref/self.scalers['Theta']]])*self.scalers['z']
+                                     dThetadSref/self.scalers['Theta']])])*self.scalers['z']
         if L/self.pf.d['twist'][3]>=0.75 and L/self.pf.d['twist'][3]<=1.25:							 
             dSLdL = 1.0/self.pf.d['twist'][3]
         else:

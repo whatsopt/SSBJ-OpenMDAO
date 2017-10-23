@@ -18,6 +18,7 @@ from ssbj_mda import init_ssbj_mda, SSBJ_MDA
 
 # Optimization problem
 scalers, pfunc = init_ssbj_mda()
+print(scalers)
 prob = Problem()
 prob.model = SSBJ_MDA(scalers, pfunc)
 
@@ -30,9 +31,9 @@ prob.driver.options['optimizer'] = optimizer
 #Design variables
 prob.model.add_design_var('z', lower=np.array([0.2, 0.666, 0.875,
                                          0.45, 0.72, 0.5]),
-                         upper=np.array([1.8, 1.333, 1.125, 1.45, 1.27, 1.5]))
+                          upper=np.array([1.8, 1.333, 1.125, 1.45, 1.27, 1.5]))
 prob.model.add_design_var('x_str', lower=np.array([0.4, 0.75]),
-                    upper=np.array([1.6, 1.25]))
+                          upper=np.array([1.6, 1.25]))
 prob.model.add_design_var('x_aer', lower=0.75, upper=1.25)
 prob.model.add_design_var('x_pro', lower=0.18, upper=1.81)
 
@@ -55,8 +56,8 @@ prob.model.add_constraint('con_temp', upper=0.0)
 
 #Recorder
 db_name = 'MDF.sqlite'
+recorder = SqliteRecorder(db_name)
 if "--plot" in argv:
-    recorder = SqliteRecorder(db_name)
     recorder.options['record_inputs'] = True
     recorder.options['record_metadata'] = True
     recorder.options['record_desvars'] = True
@@ -67,10 +68,10 @@ if "--plot" in argv:
 #Run optimization
 prob.setup()
 prob.driver.add_recorder(recorder)
-prob.run_model()
+prob.run_driver()
 prob.cleanup()
 
-print 'Z_opt=',prob['z']*scalers['z']
+print 'Z_opt=', prob['z']*scalers['z']
 print 'X_str_opt=', prob['x_str']*scalers['x_str']
 print 'X_aer_opt=', prob['x_aer']
 print 'X_pro_opt=', prob['x_pro']*scalers['x_pro']

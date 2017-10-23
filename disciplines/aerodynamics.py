@@ -162,10 +162,10 @@ class Aerodynamics(ExplicitComponent):
         dCLdSref2 = 2.0*CL*-WT/(0.5*rho*V**2*Z[5]**2)
         dCDdSref = Fo3*k*dCLdSref2
         dDdSref = 0.5*rho*V**2*(CD+Z[5]*dCDdSref)
-        partials['D', 'z'] = np.array([[dDdtc/self.scalers['D'], dDdh/self.scalers['D'],
+        partials['D', 'z'] = np.array([np.append(dDdtc/self.scalers['D'], [dDdh/self.scalers['D'],
                                  dDdM/self.scalers['D'], dDdAR/self.scalers['D'],
                                  dDdLambda/self.scalers['D'],
-                                 dDdSref/self.scalers['D']]])*self.scalers['z']
+                                 dDdSref/self.scalers['D']])])*self.scalers['z']
         dDdWT = Fo3*k*2.0*WT/(0.5*rho*V**2*Z[5])
         partials['D', 'WT'] = np.array([[dDdWT/self.scalers['D']*self.scalers['WT']]])
         S_shifted, Ai, Aij = self.pf.eval([Theta], [5], [.25], "Fo3", deriv=True)
