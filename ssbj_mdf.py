@@ -56,18 +56,16 @@ prob.model.add_constraint('con_temp', upper=0.0)
 
 #Recorder
 db_name = 'MDF.sqlite'
-recorder = SqliteRecorder(db_name)
 if "--plot" in argv:
-    recorder.options['record_inputs'] = True
-    recorder.options['record_metadata'] = True
+    recorder = SqliteRecorder(db_name)
     recorder.options['record_desvars'] = True
     recorder.options['record_responses'] = True
     recorder.options['record_objectives'] = True
     recorder.options['record_constraints'] = True
+    prob.driver.add_recorder(recorder)
 
 #Run optimization
 prob.setup()
-prob.driver.add_recorder(recorder)
 prob.run_driver()
 prob.cleanup()
 
@@ -78,15 +76,16 @@ print 'X_pro_opt=', prob['x_pro']*scalers['x_pro']
 print 'R_opt=', prob['R']*scalers['R']
 
 if "--plot" in argv:
-    db = sqlitedict.SqliteDict(db_name, 'openmdao')
+    from openmdao.recorders.case_reader import CaseReader
+
     plt.figure()
 
-    pattern = re.compile('rank0:'+optimizer+r'/\d+$')
+    cr = CaseReader(db_name)
+    print('Number of driver cases recorded =', cr.driver_cases.num_cases )
+    case_keys = cr.driver_cases.list_cases()
     r = []
-    for k, v in db.iteritems():
-        print("coucou", k)
-        if re.match(pattern, k):
-            r.append(v['Unknowns']['R']*scalers['R'])
+    for case_key in case_keys:    
+        r.append(cr.driver_cases.get_case(case_key).objectives['Perfo.R']*scalers['R'])
     plt.plot(r)
     plt.show()
 
