@@ -50,8 +50,7 @@ class Aerodynamics(ExplicitComponent):
             V = 968.1 * abs(Z[2])
             rho = 2.377E-3 * 0.2971 * np.exp((36089.0 - Z[1]) / 20806.7)
         CL = WT / (0.5*rho*(V**2)*Z[5])
-        s_new = np.append(ESF, abs(inputs['x_aer']))
-        Fo2 = self.pf.eval(s_new, [1, 1], [.25]*2, "Fo2")
+        Fo2 = self.pf.eval([ESF, abs(inputs['x_aer'])], [1, 1], [.25]*2, "Fo2")
 
         CDmin = CDMIN*Fo2 + 3.05*abs(Z[0])**(5.0/3.0) \
                 * abs(np.cos(Z[4]*np.pi/180.0))**1.5
@@ -70,7 +69,6 @@ class Aerodynamics(ExplicitComponent):
         fin = WT/D
         outputs['fin'] = fin/self.scalers['fin']
         outputs['dpdx'] = self.pf.eval([Z[0]], [1], [.25], "dpdx")/self.scalers['dpdx']
-        print(fin,Theta)
 
     def compute_partials(self, inputs, partials):
         #Variables scaling
@@ -86,7 +84,7 @@ class Aerodynamics(ExplicitComponent):
             V = 968.1 * abs(Z[2])
             rho = 2.377E-3*0.2971*np.exp((36089.0 - Z[1])/20806.7)
         CL = WT / (0.5*rho*(V**2)*Z[5])
-        s_new = np.append(ESF, abs(inputs['x_aer']))
+        s_new = [ESF, abs(inputs['x_aer'])]
         Fo2 = self.pf.eval(s_new, [1, 1], [.25]*2, "Fo2")
 
         CDmin = CDMIN * Fo2 + 3.05 * abs(Z[0])**(5.0/3.0) \
@@ -220,7 +218,6 @@ class Aerodynamics(ExplicitComponent):
         partials['fin', 'ESF'] = np.array(
             [[(-dDdESF*WT)/D**2/self.scalers['WT']\
               *self.scalers['D']*self.scalers['ESF']]]).reshape((1, 1))
-        print (partials['fin', 'Theta'])
 
 if __name__ == "__main__": # pragma: no cover
 
@@ -236,7 +233,7 @@ if __name__ == "__main__": # pragma: no cover
 
     top = Problem()
     top.model.add_subsystem('z_in', IndepVarComp('z', np.array([1.2  ,  1.333,  0.875,  0.45 ,  1.27 ,  1.5])),
-                 promotes=['*'])
+                            promotes=['*'])
     top.model.add_subsystem('x_aer_in', IndepVarComp('x_aer', 0.75), promotes=['*'])
     top.model.add_subsystem('WT_in', IndepVarComp('WT', 0.89), promotes=['*'])
     top.model.add_subsystem('Theta_in', IndepVarComp('Theta', 0.9975), promotes=['*'])

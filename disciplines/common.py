@@ -23,6 +23,10 @@ class PolynomialFunction(object):
     d = dict()
 
     def eval(self, S_new, flag, S_bound, var, deriv=False):
+        if len(S_new) > 1:
+            res = np.array([])
+            S_new = np.append(res, S_new)
+
         if var not in self.d.keys():
             self.d[var] = list(S_new)
 

@@ -233,7 +233,7 @@ class Structure(ExplicitComponent):
         ###############sigma###############################
         b = np.sqrt(abs(Z[5]*Z[3]))/2.0
         R = (1.0+2.0*Xstr[0])/(3.0*(1.0+Xstr[0]))
-        s_new = np.append(Z[0], [L, Xstr[1], b, R])
+        s_new = [Z[0], L, Xstr[1], b, R]
         S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.1]*5,
                                           "sigma[1]", deriv=True)
@@ -367,7 +367,7 @@ class Structure(ExplicitComponent):
              [dsigma5dlambda[0, 0]/self.scalers['sigma'][4],
               dsigma5dx[0, 0]/self.scalers['sigma'][4]]])*self.scalers['x_str']
 
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.1]*5,
                                           "sigma[1]", deriv=True)
         if Z[0]/self.pf.d['sigma[1]'][0]>=0.75 and Z[0]/self.pf.d['sigma[1]'][0]<=1.25: 					  
@@ -401,7 +401,7 @@ class Structure(ExplicitComponent):
             + Aij[1, 3]*S_shifted[0, 1]*dSbdSref \
             + Aij[2, 3]*S_shifted[0, 2]*dSbdSref \
             + Aij[4, 3]*S_shifted[0, 4]*dSbdSref
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.15]*5,
                                           "sigma[2]", deriv=True)
 										  
@@ -437,7 +437,7 @@ class Structure(ExplicitComponent):
             + Aij[2, 3]*S_shifted[0, 2]*dSbdSref \
             + Aij[4, 3]*S_shifted[0, 4]*dSbdSref
 
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.20]*5,
                                           "sigma[3]", deriv=True)
         if Z[0]/self.pf.d['sigma[3]'][0]>=0.75 and Z[0]/self.pf.d['sigma[3]'][0]<=1.25: 					  
@@ -472,7 +472,7 @@ class Structure(ExplicitComponent):
             + Aij[2, 3]*S_shifted[0, 2]*dSbdSref \
             + Aij[4, 3]*S_shifted[0, 4]*dSbdSref
 
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.25]*5,
                                           "sigma[4]", deriv=True)
         if Z[0]/self.pf.d['sigma[4]'][0]>=0.75 and Z[0]/self.pf.d['sigma[4]'][0]<=1.25: 					  
@@ -507,7 +507,7 @@ class Structure(ExplicitComponent):
             + Aij[2, 3]*S_shifted[0, 2]*dSbdSref \
             + Aij[4, 3]*S_shifted[0, 4]*dSbdSref
 
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.3]*5,
                                           "sigma[5]", deriv=True)
         if Z[0]/self.pf.d['sigma[5]'][0]>=0.75 and Z[0]/self.pf.d['sigma[5]'][0]<=1.25: 					  
@@ -587,7 +587,7 @@ class Structure(ExplicitComponent):
             + Aij[3, 1]*S_shifted[0, 3]*dSLdL \
             + Aij[4, 1]*S_shifted[0, 4]*dSLdL
 
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.15]*5,
                                           "sigma[2]", deriv=True)
         if L/self.pf.d['sigma[2]'][1]>=0.75 and L/self.pf.d['sigma[2]'][1]<=1.25:							  
@@ -601,7 +601,7 @@ class Structure(ExplicitComponent):
             + Aij[3, 1]*S_shifted[0, 3]*dSLdL \
             + Aij[4, 1]*S_shifted[0, 4]*dSLdL
 
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.2]*5,
                                           "sigma[3]", deriv=True)
         if L/self.pf.d['sigma[3]'][1]>=0.75 and L/self.pf.d['sigma[3]'][1]<=1.25:							  
@@ -615,7 +615,7 @@ class Structure(ExplicitComponent):
             + Aij[3, 1]*S_shifted[0, 3]*dSLdL \
             + Aij[4, 1]*S_shifted[0, 4]*dSLdL
 
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.25]*5,
                                           "sigma[4]", deriv=True)
         if L/self.pf.d['sigma[4]'][1]>=0.75 and L/self.pf.d['sigma[4]'][1]<=1.25:							  
@@ -629,7 +629,7 @@ class Structure(ExplicitComponent):
             + Aij[3, 1]*S_shifted[0, 3]*dSLdL \
             + Aij[4, 1]*S_shifted[0, 4]*dSLdL
 
-        S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
+        S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [4, 1, 4, 1, 1], [0.3]*5,
                                           "sigma[5]", deriv=True)
         if L/self.pf.d['sigma[5]'][1]>=0.75 and L/self.pf.d['sigma[5]'][1]<=1.25:							  

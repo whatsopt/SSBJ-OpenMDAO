@@ -10,8 +10,8 @@ import matplotlib.pylab as plt
 import sqlitedict
 
 from openmdao.api import Problem
-from openmdao.api import SqliteRecorder
-from openmdao.api import ScipyOptimizer #, pyOptSparseDriver
+from openmdao.api import SqliteRecorder, WebRecorder
+from openmdao.api import ScipyOptimizer, pyOptSparseDriver
 
 from ssbj_mda import init_ssbj_mda, SSBJ_MDA
 # pylint: disable=C0103
@@ -24,13 +24,12 @@ prob.model = SSBJ_MDA(scalers, pfunc)
 
 #Optimizer options
 prob.driver = ScipyOptimizer()
-#P.driver = pyOptSparseDriver()
+#prob.driver = pyOptSparseDriver()
 optimizer ='SLSQP'
 prob.driver.options['optimizer'] = optimizer
 
 #Design variables
-prob.model.add_design_var('z', lower=np.array([0.2, 0.666, 0.875,
-                                         0.45, 0.72, 0.5]),
+prob.model.add_design_var('z', lower=np.array([0.2, 0.666, 0.875, 0.45, 0.72, 0.5]),
                           upper=np.array([1.8, 1.333, 1.125, 1.45, 1.27, 1.5]))
 prob.model.add_design_var('x_str', lower=np.array([0.4, 0.75]),
                           upper=np.array([1.6, 1.25]))
@@ -58,11 +57,15 @@ prob.model.add_constraint('con_temp', upper=0.0)
 db_name = 'MDF.sqlite'
 if "--plot" in argv:
     recorder = SqliteRecorder(db_name)
+    recorder2 = WebRecorder("2CJSXJGV44", case_name="SSBJ MDF")
     recorder.options['record_desvars'] = True
-    recorder.options['record_responses'] = True
     recorder.options['record_objectives'] = True
     recorder.options['record_constraints'] = True
+    recorder2.options['record_desvars'] = True
+    recorder2.options['record_objectives'] = True
+    recorder2.options['record_constraints'] = True
     prob.driver.add_recorder(recorder)
+    # prob.driver.add_recorder(recorder2)
 
 #Run optimization
 prob.setup()
