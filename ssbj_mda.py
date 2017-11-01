@@ -8,7 +8,7 @@ import numpy as np
 
 from openmdao.api import ExecComp, IndepVarComp
 from openmdao.api import Group, Problem
-from openmdao.api import NLGaussSeidel, ScipyGMRES
+from openmdao.api import NonlinearBlockGS, ScipyIterativeSolver
 
 from disciplines.aerodynamics import Aerodynamics
 from disciplines.performance import Performance
@@ -21,51 +21,54 @@ class SSBJ_MDA(Group):
     """
     SSBJ Analysis with aerodynamics, performance, propulsion and structure disciplines.
     """
-    def __init__(self, scalers, polyFunc):
+    def __init__(self, scalers, pfunc):
         super(SSBJ_MDA, self).__init__()
+        self.scalers = scalers
+        self.pf = pfunc
 
+    def setup(self):
         #Design variables
-        self.add('z_ini',
+        self.add_subsystem('z_ini',
                  IndepVarComp('z', np.array([1.0,1.0,1.0,1.0,1.0,1.0])),
                  promotes=['*'])
-        self.add('x_aer_ini', IndepVarComp('x_aer', 1.0), promotes=['*'])
-        self.add('x_str_ini',
+        self.add_subsystem('x_aer_ini', IndepVarComp('x_aer', 1.0), promotes=['*'])
+        self.add_subsystem('x_str_ini',
                  IndepVarComp('x_str', np.array([1.0,1.0])),
                  promotes=['*'])
-        self.add('x_pro_ini', IndepVarComp('x_pro', 1.0), promotes=['*'])
+        self.add_subsystem('x_pro_ini', IndepVarComp('x_pro', 1.0), promotes=['*'])
 
         #Disciplines
         sap_group = Group()
-        sap_group.add('Struc', Structure(scalers,polyFunc), promotes=['*'])
-        sap_group.add('Aero', Aerodynamics(scalers,polyFunc), promotes=['*'])
-        sap_group.add('Propu',Propulsion(scalers,polyFunc),promotes=['*'])
+        sap_group.add_subsystem('Struc', Structure(self.scalers, self.pf), promotes=['*'])
+        sap_group.add_subsystem('Aero', Aerodynamics(self.scalers, self.pf), promotes=['*'])
+        sap_group.add_subsystem('Propu',Propulsion(self.scalers, self.pf),promotes=['*'])
 
-        sap_group.nl_solver = NLGaussSeidel()
-        sap_group.nl_solver.options['atol'] = 1.0e-3
-        sap_group.ln_solver = ScipyGMRES()
-        self.add('sap', sap_group, promotes=['*'])
+        sap_group.nonlinear_solver = NonlinearBlockGS()
+        sap_group.nonlinear_solver.options['atol'] = 1.0e-3
+        sap_group.linear_solver = ScipyIterativeSolver()
+        self.add_subsystem('sap', sap_group, promotes=['*'])
 
-        self.add('Perfo', Performance(scalers), promotes=['*'])
+        self.add_subsystem('Perfo', Performance(self.scalers), promotes=['*'])
 
         #Constraints
-        self.add('con_Theta_sup', ExecComp('con_Theta_up = Theta*'+\
-                                           str(scalers['Theta'])+'-1.04'), promotes=['*'])
-        self.add('con_Theta_inf', ExecComp('con_Theta_low = 0.96-Theta*'+\
-                                           str(scalers['Theta'])), promotes=['*'])
+        self.add_subsystem('con_Theta_sup', ExecComp('con_Theta_up = Theta*'+\
+                                           str(self.scalers['Theta'])+'-1.04'), promotes=['*'])
+        self.add_subsystem('con_Theta_inf', ExecComp('con_Theta_low = 0.96-Theta*'+\
+                                           str(self.scalers['Theta'])), promotes=['*'])
         for i in range(5):
-            self.add('con_Sigma'+str(i+1), ExecComp('con_sigma'+str(i+1)+'=sigma['+str(i)+']*'+\
-                                                    str(scalers['sigma'][i])+'-1.9',
+            self.add_subsystem('con_Sigma'+str(i+1), ExecComp('con_sigma'+str(i+1)+'=sigma['+str(i)+']*'+\
+                                                    str(self.scalers['sigma'][i])+'-1.9',
                                                     sigma=np.zeros(5)), promotes=['*'])
-        self.add('con_Dpdx', ExecComp('con_dpdx=dpdx*'+str(scalers['dpdx'])+'-1.04'),
+        self.add_subsystem('con_Dpdx', ExecComp('con_dpdx=dpdx*'+str(self.scalers['dpdx'])+'-1.04'),
                  promotes=['*'])
-        self.add('con1_ESF', ExecComp('con1_esf=ESF*'+str(scalers['ESF'])+'-1.5'),
+        self.add_subsystem('con1_ESF', ExecComp('con1_esf=ESF*'+str(self.scalers['ESF'])+'-1.5'),
                  promotes=['*'])
-        self.add('con2_ESF', ExecComp('con2_esf=0.5-ESF*'+str(scalers['ESF'])),
+        self.add_subsystem('con2_ESF', ExecComp('con2_esf=0.5-ESF*'+str(self.scalers['ESF'])),
                  promotes=['*'])
-        self.add('con_Temp', ExecComp('con_temp=Temp*'+str(scalers['Temp'])+'-1.02'),
+        self.add_subsystem('con_Temp', ExecComp('con_temp=Temp*'+str(self.scalers['Temp'])+'-1.02'),
                  promotes=['*'])
 
-        self.add('con_DT', ExecComp('con_dt=DT'), promotes=['*'])
+        self.add_subsystem('con_DT', ExecComp('con_dt=DT'), promotes=['*'])
 
 def init_ssbj_mda():
     """
@@ -96,11 +99,11 @@ def init_ssbj_mda():
     scalers['sigma']=np.array([1.0,1.0,1.0,1.0,1.0])
 
     pfunc = PolynomialFunction()
-    prob.root = SSBJ_MDA(scalers, pfunc)
+    prob.model = SSBJ_MDA(scalers, pfunc)
     prob.setup()
 
     #Initialization of acceptable values as initial values for the polynomial functions
-    Z = prob.root.unknowns['z']*scalers['z']
+    Z = prob['z']*scalers['z']
     Wfo = 2000
     Wo = 25000
     We = 3*4360.0*(1.0**1.05)
@@ -115,17 +118,17 @@ def init_ssbj_mda():
                   ((np.cos(Z[4]*np.pi/180))**-1)*((.1875*Z[5])**.1))
         Wtotal = Wo + Ww + Wfo + Wfw + We
 
-    prob.root.unknowns['WT'] = Wtotal
-    prob.root.sap.params['Aero.WT'] = Wtotal
-    prob.root.sap.params['Struc.L'] = Wtotal
-    prob.root.unknowns['L'] = Wtotal
+    prob['WT'] = Wtotal
+    # prob['sap']['Aero.WT'] = Wtotal
+    # prob['sap']['Struc.L'] = Wtotal
+    prob['L'] = Wtotal
 
-    prob.run()
+    prob.run_driver()
 
     #Uptade the scalers dictionary
     for key in scalers.iterkeys():
         if key not in ['z', 'x_str', 'x_pro']:
-            scalers[key] = prob.root.unknowns[key]
+            scalers[key] = prob[key]
 
     return scalers, pfunc
 
