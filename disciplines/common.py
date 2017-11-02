@@ -27,7 +27,7 @@ class PolynomialFunction(object):
             res = np.array([])
             S_new = np.append(res, S_new)
 
-        if var not in self.d.keys():
+        if var not in self.d:
             self.d[var] = list(S_new)
 
         S = self.d[var]
@@ -97,6 +97,7 @@ class PolynomialFunction(object):
             return S_shifted, Ai, Aij
         else:
             return float((Ao + Ai.T * S_shifted.T + 0.5 * S_shifted * Aij * S_shifted.T)[0])
+
 
 if __name__ == '__main__':
 

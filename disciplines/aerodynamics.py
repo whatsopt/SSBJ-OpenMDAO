@@ -12,13 +12,10 @@ from common import PolynomialFunction, CDMIN
 
 class Aerodynamics(ExplicitComponent):
 
-    def __init__(self, scalers, pfunc):
+    def __init__(self, scalers):
         super(Aerodynamics, self).__init__()
-        # scalers values
         self.scalers = scalers
-        # Polynomial function initialized with given
-        # constant values
-        self.pf = pfunc
+        self.pf = PolynomialFunction()
 
     def setup(self):
         # Global Design Variable z=(t/c,h,M,AR,Lambda,Sref)
@@ -37,12 +34,12 @@ class Aerodynamics(ExplicitComponent):
         self.declare_partials('*', '*')
 
     def compute(self, inputs, outputs):
-        #Variables scaling
+
         Z = inputs['z']*self.scalers['z']
         WT = inputs['WT']*self.scalers['WT']
         ESF = inputs['ESF']*self.scalers['ESF']
         Theta = inputs['Theta']*self.scalers['Theta']
-        #Computation
+
         if Z[1] <= 36089.0:
             V = 1116.39 * Z[2] * np.sqrt(abs(1.0 - 6.875E-6*Z[1]))
             rho = 2.377E-3 * (1. - 6.875E-6*Z[1])**4.2561
@@ -64,19 +61,19 @@ class Aerodynamics(ExplicitComponent):
         CD = (CDmin + k * CL**2) * Fo3
         outputs['L'] = inputs['WT']
         D = CD * 0.5 * rho * V**2 * Z[5]
-        #Unknowns
         outputs['D'] = D/self.scalers['D']
         fin = WT/D
         outputs['fin'] = fin/self.scalers['fin']
         outputs['dpdx'] = self.pf.eval([Z[0]], [1], [.25], "dpdx")/self.scalers['dpdx']
 
     def compute_partials(self, inputs, partials):
-        #Variables scaling
+
         Z = inputs['z']*self.scalers['z']
         WT = inputs['WT']*self.scalers['WT']
         ESF = inputs['ESF']*self.scalers['ESF']
         Theta = inputs['Theta']*self.scalers['Theta']
-        #Computation of some terms necessary to the jacobian computation
+
+        # auxiliary computations
         if Z[1] <= 36089.0:
             V = 1116.39 * Z[2] * np.sqrt(abs(1.0 - 6.875E-6 * Z[1]))
             rho = 2.377E-3 * (1. - 6.875E-6*Z[1])**4.2561
@@ -98,13 +95,15 @@ class Aerodynamics(ExplicitComponent):
         Fo3 = self.pf.eval([Theta], [5], [.25], "Fo3")
         CD = (CDmin + k * CL**2) * Fo3
         D = CD * 0.5 * rho * V**2 * Z[5]
-        #L=WT => dL/d.=0.0
+
+        # dL #################################################################
         partials['L', 'x_aer'] = np.array([[0.0]])
         partials['L', 'z'] = np.zeros((1, 6))
         partials['L', 'WT'] = np.array([[1.0]])
         partials['L', 'Theta'] = np.array([[0.0]])
         partials['L', 'ESF'] = np.array([[0.0]])
-        #D
+
+        # dD #################################################################
         S_shifted, Ai, Aij = self.pf.eval(s_new,
                                           [1, 1], [.25]*2, "Fo2", deriv=True)
         if abs(inputs['x_aer'])/self.pf.d['Fo2'][1]>=0.75 and \
@@ -190,7 +189,8 @@ class Aerodynamics(ExplicitComponent):
         dDdESF = 0.5*rho*V**2*Z[5]*dCDdESF
         partials['D', 'ESF'] = np.array(
             [[dDdESF/self.scalers['D']*self.scalers['ESF']]]).reshape((1, 1))
-        ##################dpdx=pf(t/c)
+
+        # dpdx ################################################################
         partials['dpdx', 'x_aer'] = np.array([[0.0]])
         partials['dpdx', 'z'] = np.zeros((1, 6))
         S_shifted, Ai, Aij = self.pf.eval([Z[0]], [1], [.25], "dpdx", deriv=True)
@@ -204,7 +204,8 @@ class Aerodynamics(ExplicitComponent):
         partials['dpdx', 'WT'] = np.array([[0.0]])
         partials['dpdx', 'Theta'] = np.array([[0.0]])
         partials['dpdx', 'ESF'] = np.array([[0.0]])
-        #################fin=L/D
+        
+        # dfin ###############################################################
         partials['fin', 'x_aer'] = np.array(
             [[-dDdCf*WT/D**2/self.scalers['WT']*self.scalers['D']]]).reshape((1, 1))
         partials['fin', 'z'] = np.array(

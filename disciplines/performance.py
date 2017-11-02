@@ -44,23 +44,22 @@ class Performance(ExplicitComponent):
         outputs['R'] = R/self.scalers['R']
 
     def compute_partials(self, inputs, J):
-        #Changement de variable
         Z = inputs['z']*self.scalers['z']
         fin = inputs['fin']*self.scalers['fin']
         SFC = inputs['SFC']*self.scalers['SFC']
         WT = inputs['WT']*self.scalers['WT']
         WF = inputs['WF']*self.scalers['WF']
+        
         if Z[1] <= 36089:
             theta = 1.0-6.875E-6*Z[1]
-        else:
-            theta = 0.7519
-        ########R
-        if Z[1] <= 36089.:
             dRdh = -0.5*661.0*theta**-0.5*6.875e-6*Z[2]*fin \
                    /SFC*np.log(abs(WT/(WT-WF)))
         else:
+            theta = 0.7519
             dRdh = 0.0
+
         dRdM = 661.0*np.sqrt(theta)*fin/SFC*np.log(abs(WT/(WT-WF)))
+
         J['R', 'z'] = np.zeros((1, 6))
         J['R', 'z'][0, 1] = np.array([dRdh/self.scalers['R'] *45000.0])
         J['R', 'z'][0, 2] = np.array([dRdM/self.scalers['R'] *1.6])

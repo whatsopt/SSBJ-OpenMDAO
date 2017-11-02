@@ -17,10 +17,9 @@ class SSBJ_IDF_MDA(Group):
     Analysis for IDF formulation where couplings are managed as additional constraints
     on input/output variables of related disciplines.
     """
-    def __init__(self, scalers, pfunc):
+    def __init__(self, scalers):
         super(SSBJ_IDF_MDA, self).__init__()
         self.scalers = scalers
-        self.pfunc = pfunc
 
     def setup(self):        
         #Design variables
@@ -38,9 +37,9 @@ class SSBJ_IDF_MDA(Group):
         self.add_subsystem('D_ini', IndepVarComp('D', 0.457), promotes=['*'])
 
         #Disciplines
-        self.add_subsystem('Struc', Structure(self.scalers, self.pfunc))
-        self.add_subsystem('Aero', Aerodynamics(self.scalers, self.pfunc))
-        self.add_subsystem('Propu', Propulsion(self.scalers, self.pfunc))
+        self.add_subsystem('Struc', Structure(self.scalers))
+        self.add_subsystem('Aero', Aerodynamics(self.scalers))
+        self.add_subsystem('Propu', Propulsion(self.scalers))
         self.add_subsystem('Perfo', Performance(self.scalers))
 
         #Shared variables z

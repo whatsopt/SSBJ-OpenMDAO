@@ -10,16 +10,16 @@ import matplotlib.pylab as plt
 
 from openmdao.api import Problem
 from openmdao.api import SqliteRecorder, WebRecorder
-from openmdao.api import ScipyOptimizer , pyOptSparseDriver
+from openmdao.api import ScipyOptimizer, pyOptSparseDriver
 from ssbj_idf_mda import SSBJ_IDF_MDA
 from ssbj_mda import init_ssbj_mda
 # pylint: disable=C0103
 
 # Optimization problem
-scalers, pf = init_ssbj_mda()
+scalers = init_ssbj_mda()
 
 prob = Problem()
-prob.model = SSBJ_IDF_MDA(scalers, pf)
+prob.model = SSBJ_IDF_MDA(scalers)
 
 # Optimizer options
 # prob.driver = ScipyOptimizer()
@@ -68,7 +68,7 @@ prob.model.add_constraint('con_aer_pro_d',upper=epsilon)
 prob.model.add_constraint('con_pro_aer_esf',upper=epsilon)
 prob.model.add_constraint('con_pro_str_we',upper=epsilon)
 #Recorder
-db_name = 'IDF.sqlite'
+db_name = 'ssbj_idf.sqlite'
 if "--plot" in argv:
     recorder = SqliteRecorder(db_name)
     recorder2 = WebRecorder("2CJSXJGV44", case_name="SSBJ IDF")
@@ -83,7 +83,6 @@ if "--plot" in argv:
 
 #Run optimization
 prob.setup()
-
 prob.run_driver()
 #prob.cleanup()
 
@@ -107,6 +106,10 @@ if "--plot" in argv:
     plt.plot(r)
     plt.show()
 
+# Check R =~ 3964Nm
+R = float(-prob['obj']*scalers['R'])
+assert(R > 3963.)
+assert(R < 3965.)
 # from openmdao.devtools.problem_viewer.problem_viewer import view_model
 # view_model(prob)
 

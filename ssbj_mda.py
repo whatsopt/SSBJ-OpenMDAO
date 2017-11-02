@@ -14,17 +14,15 @@ from disciplines.aerodynamics import Aerodynamics
 from disciplines.performance import Performance
 from disciplines.propulsion import Propulsion
 from disciplines.structure import Structure
-from disciplines.common import PolynomialFunction
 # pylint: disable=C0103
 
 class SSBJ_MDA(Group):
     """
     SSBJ Analysis with aerodynamics, performance, propulsion and structure disciplines.
     """
-    def __init__(self, scalers, pfunc):
+    def __init__(self, scalers):
         super(SSBJ_MDA, self).__init__()
         self.scalers = scalers
-        self.pf = pfunc
 
     def setup(self):
         #Design variables
@@ -39,9 +37,9 @@ class SSBJ_MDA(Group):
 
         #Disciplines
         sap_group = Group()
-        sap_group.add_subsystem('Struc', Structure(self.scalers, self.pf), promotes=['*'])
-        sap_group.add_subsystem('Aero', Aerodynamics(self.scalers, self.pf), promotes=['*'])
-        sap_group.add_subsystem('Propu',Propulsion(self.scalers, self.pf),promotes=['*'])
+        sap_group.add_subsystem('Struc', Structure(self.scalers), promotes=['*'])
+        sap_group.add_subsystem('Aero', Aerodynamics(self.scalers), promotes=['*'])
+        sap_group.add_subsystem('Propu',Propulsion(self.scalers),promotes=['*'])
 
         sap_group.nonlinear_solver = NonlinearBlockGS()
         sap_group.nonlinear_solver.options['atol'] = 1.0e-3
@@ -98,8 +96,7 @@ def init_ssbj_mda():
     scalers['dpdx']=1.0
     scalers['sigma']=np.array([1.0,1.0,1.0,1.0,1.0])
 
-    pfunc = PolynomialFunction()
-    prob.model = SSBJ_MDA(scalers, pfunc)
+    prob.model = SSBJ_MDA(scalers)
     prob.setup()
 
     #Initialization of acceptable values as initial values for the polynomial functions
@@ -130,8 +127,8 @@ def init_ssbj_mda():
         if key not in ['z', 'x_str', 'x_pro']:
             scalers[key] = prob[key]
 
-    return scalers, pfunc
+    return scalers
 
 if __name__ == "__main__":
-    scalers, _ = init_ssbj_mda()
+    scalers = init_ssbj_mda()
     print(scalers)

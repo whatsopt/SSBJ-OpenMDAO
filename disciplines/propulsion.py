@@ -11,12 +11,12 @@ from common import PolynomialFunction, WBE
 
 class Propulsion(ExplicitComponent):
 
-    def __init__(self, scalers, pfunc):
+    def __init__(self, scalers):
         super(Propulsion, self).__init__()
         # scalers values
         self.scalers = scalers
         # Polynomial function initialized with given constant values
-        self.pf = pfunc
+        self.pf = PolynomialFunction()
 
     def setup(self):
         # Global Design Variable z=(t/c,h,M,AR,Lambda,Sref)
@@ -34,10 +34,9 @@ class Propulsion(ExplicitComponent):
         self.declare_partials('*', '*')
 
     def compute(self, inputs, outputs):
-        #Variables scaling
         Z = inputs['z']*self.scalers['z']
         Xpro = inputs['x_pro']*self.scalers['x_pro']
-        #print("Z={} Xpro={}".format(inputs['z'], inputs['x_pro'])) 
+
         Tbar = abs(Xpro) * 16168.6
         outputs['Temp'] = self.pf.eval(
             [Z[2], Z[1], abs(Xpro)],

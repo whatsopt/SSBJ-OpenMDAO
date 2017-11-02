@@ -11,20 +11,18 @@ from common import PolynomialFunction, WFO, WO, NZ
 
 class Structure(ExplicitComponent):
 
-    def __init__(self, scalers, pfunc):
+    def __init__(self, scalers):
         super(Structure, self).__init__()
         # scalers values
         self.scalers = scalers
         # Polynomial function initialized with given constant values
-        self.pf = pfunc
+        self.pf = PolynomialFunction()
 
     def setup(self):
         # Global Design Variable z=(t/c,h,M,AR,Lambda,Sref)
         self.add_input('z', val=np.zeros(6))
-
         # Local Design Variable x_str=(lambda,section caisson)
         self.add_input('x_str', val=np.zeros(2))
-
         # Coupling parameters
         self.add_input('L', val=1.0)
         self.add_input('WE', val=1.0)
@@ -36,19 +34,18 @@ class Structure(ExplicitComponent):
         self.declare_partials('*', '*')
 
     def compute(self, inputs, outputs):
-        #Variables scaling
         Z = inputs['z']*self.scalers['z']
         Xstr = inputs['x_str']*self.scalers['x_str']
         L = inputs['L']*self.scalers['L']
-        #Computation
+
         t = Z[0]*Z[5]/(np.sqrt(abs(Z[5]*Z[3])))
         b = np.sqrt(abs(Z[5]*Z[3]))/2.0
         R = (1.0+2.0*Xstr[0])/(3.0*(1.0+Xstr[0]))
         Theta = self.pf.eval([abs(Xstr[1]), b, R, L],
                              [2, 4, 4, 3], [0.25]*4, "twist")
-        ##Uncomment to use Fo1=pf(x)
+
         Fo1 = self.pf.eval([Xstr[1]], [1], [.008], "Fo1")
-        #Fo1=1.0
+
         WT_hat = L
         WW = Fo1 * (0.0051 * abs(WT_hat*NZ)**0.557 * \
                     abs(Z[5])**0.649 * abs(Z[3])**0.5 * abs(Z[0])**(-0.4) \
@@ -78,14 +75,14 @@ class Structure(ExplicitComponent):
         outputs['sigma'][4] = Sigma4/self.scalers['sigma'][4]
 
     def compute_partials(self, inputs, J):
-        #Variables scaling
+
         Z = inputs['z']*self.scalers['z']
         Xstr = inputs['x_str']*self.scalers['x_str']
         L = inputs['L']*self.scalers['L']
-        #Uncomment to use Fo1=pf(x)
+
+        # dWT ################################################################
         Fo1 = self.pf.eval([Xstr[1]], [1], [.008], "Fo1")
-        #Fo1=1.0
-        ######################WT#############################
+
         dWtdlambda = 0.1*Fo1/np.cos(Z[4]*np.pi/180.)*0.0051 \
             *(abs(L)*NZ)**0.557*abs(Z[5])**0.649 \
             * abs(Z[3])**0.5 * abs(Z[0])**(-0.4) \
@@ -93,17 +90,17 @@ class Structure(ExplicitComponent):
         A = (0.0051 * abs(L*NZ)**0.557 * abs(Z[5])**0.649 \
              * abs(Z[3])**0.5 * abs(Z[0])**(-0.4) * abs(1.0+Xstr[0])**0.1 \
              * (0.1875*abs(Z[5]))**0.1 / abs(np.cos(Z[4]*np.pi/180.)))
-        #uncomment to use Fo1=self.pf(x)
+
         S_shifted, Ai, Aij = self.pf.eval([Xstr[1]], [1], [.008],
                                           "Fo1", deriv=True)
         if Xstr[1]/self.pf.d['Fo1'][0]>=0.75 and Xstr[1]/self.pf.d['Fo1'][0]<=1.25:
             dSxdx = 1.0/self.pf.d['Fo1'][0]
         else:
             dSxdx = 0.0
+
         dWtdx = A*(Ai[0]*dSxdx \
                    + Aij[0, 0]*dSxdx*S_shifted[0, 0])
-        # if Fo1=1.0
-        #dWtdx=0.0
+
         val = np.append(dWtdlambda/self.scalers['L'], dWtdx/self.scalers['L'])
         J['WT', 'x_str'] = np.array([val])*self.scalers['x_str']
         dWTdtc = -0.4*Fo1/np.cos(Z[4]*np.pi/180.)*0.0051 \
@@ -138,7 +135,8 @@ class Structure(ExplicitComponent):
         J['WT', 'L'] = np.array([[dWTdL]])
         dWTdWE = 1.0
         J['WT', 'WE'] = np.array([[dWTdWE]])/self.scalers['L']*self.scalers['WE']
-        ######################WF#############################
+
+        # dWF ################################################################
         dWFdlambda = 0.0
         dWFdx = 0.0
         val = np.append(dWFdlambda/self.scalers['WF'], dWFdx/self.scalers['WF'])
@@ -160,7 +158,8 @@ class Structure(ExplicitComponent):
         J['WF', 'L'] = np.array([[dWFdL]])/self.scalers['WF']*self.scalers['L']
         dWFdWE = 0.0
         J['WF', 'WE'] = np.array([[dWFdWE]])/self.scalers['WF']*self.scalers['WE']
-        ##################Theta#############################
+
+        ### dTheta ###########################################################
         b = np.sqrt(abs(Z[5]*Z[3]))/2.0
         R = (1.0+2.0*Xstr[0])/(3.0*(1.0+Xstr[0]))
         S_shifted, Ai, Aij = self.pf.eval([abs(Xstr[1]), b, R, L],
@@ -170,6 +169,7 @@ class Structure(ExplicitComponent):
             dSRdlambda = 1.0/self.pf.d['twist'][2]*1.0/(3.0*(1.0+Xstr[0])**2)
         else:
             dSRdlambda = 0.0
+
         dSRdlambda2 = 2.0*S_shifted[0, 2]*dSRdlambda
         dThetadlambda = Ai[2]*dSRdlambda + 0.5*Aij[2, 2]*dSRdlambda2 \
             + Aij[0, 2]*S_shifted[0, 0]*dSRdlambda \
@@ -230,7 +230,7 @@ class Structure(ExplicitComponent):
         dThetadWE = 0.0
         J['Theta', 'WE'] = np.array([[dThetadWE]])/self.scalers['Theta']*self.scalers['WE']
 
-        ###############sigma###############################
+        # dsigma #############################################################
         b = np.sqrt(abs(Z[5]*Z[3]))/2.0
         R = (1.0+2.0*Xstr[0])/(3.0*(1.0+Xstr[0]))
         s_new = [Z[0], L, Xstr[1], b, R]
@@ -573,6 +573,8 @@ class Structure(ExplicitComponent):
               dsigma5dAR[0, 0]/self.scalers['sigma'][4],
               dsigma5dLambda/self.scalers['sigma'][4],
               dsigma5dSref[0, 0]/self.scalers['sigma'][4]]])*self.scalers['z']
+
+        # dS #################################################################
         S_shifted, Ai, Aij = self.pf.eval([Z[0], L, Xstr[1], b, R],
                                           [4, 1, 4, 1, 1], [0.1]*5,
                                           "sigma[1]", deriv=True)
