@@ -8,7 +8,7 @@ import numpy as np
 
 from openmdao.api import ExecComp, IndepVarComp
 from openmdao.api import Group, Problem
-from openmdao.api import NonlinearBlockGS, ScipyIterativeSolver
+from openmdao.api import NonlinearBlockGS, ScipyKrylov
 
 from disciplines.aerodynamics import Aerodynamics
 from disciplines.performance import Performance
@@ -43,7 +43,7 @@ class SSBJ_MDA(Group):
 
         sap_group.nonlinear_solver = NonlinearBlockGS()
         sap_group.nonlinear_solver.options['atol'] = 1.0e-3
-        sap_group.linear_solver = ScipyIterativeSolver()
+        sap_group.linear_solver = ScipyKrylov()
         self.add_subsystem('sap', sap_group, promotes=['*'])
 
         self.add_subsystem('Perfo', Performance(self.scalers), promotes=['*'])

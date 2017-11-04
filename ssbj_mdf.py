@@ -56,13 +56,10 @@ prob.model.add_constraint('con_temp', upper=0.0)
 db_name = 'ssbj_mdf.sqlite'
 if "--plot" in argv:
     recorder = SqliteRecorder(db_name)
-    recorder2 = WebRecorder("2CJSXJGV44", case_name="SSBJ MDF")
-    recorder.options['record_desvars'] = True
-    recorder.options['record_objectives'] = True
-    recorder.options['record_constraints'] = True
-    recorder2.options['record_desvars'] = True
-    recorder2.options['record_objectives'] = True
-    recorder2.options['record_constraints'] = True
+    recorder2 = WebRecorder("", case_name="SSBJ MDF")
+    prob.driver.options['record_desvars'] = True
+    prob.driver.options['record_objectives'] = True
+    prob.driver.options['record_constraints'] = True
     prob.driver.add_recorder(recorder)
     # prob.driver.add_recorder(recorder2)
 
