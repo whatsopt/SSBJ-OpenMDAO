@@ -98,9 +98,10 @@ if "--plot" in argv:
     case_keys = cr.driver_cases.list_cases()
     r = []
     for case_key in case_keys:    
-        r.append(cr.driver_cases.get_case(case_key).objectives['Obj.obj']*scalers['R'])
-
+        r.append(-cr.driver_cases.get_case(case_key).objectives['Obj.obj']*scalers['R'])
     plt.plot(r)
+    plt.xlabel('Iteration')
+    plt.ylabel('Range (Nm)')
     plt.show()
 
 # Check R =~ 3964Nm
