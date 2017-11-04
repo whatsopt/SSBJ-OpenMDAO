@@ -11,9 +11,9 @@ SSBJ test case solved by MDF and IDF MDO formulations with OpenMDAO 2.x.
 # Usage 
 ## MDF
 ``` sh
-python ssbj_mdf.py
+python ssbj_mdf.py [--plot]
 ```
 ## IDF
 ``` sh
-python ssbj_idf.py
+python ssbj_idf.py [--plot]
 ```
