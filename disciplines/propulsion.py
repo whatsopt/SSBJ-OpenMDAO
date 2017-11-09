@@ -107,7 +107,7 @@ class Propulsion(ExplicitComponent):
         J['Temp', 'x_pro'] = np.array(
             [[dTempdT/self.scalers['Temp']*self.scalers['x_pro']]]).reshape((1, 1))
         J['Temp', 'z'] = np.zeros((1, 6))
-        if Z[1]/self.pf.d['Temp'][1]<=1.25 and Z[2]/self.pf.d['Temp'][1]>=0.75: 	
+        if Z[1]/self.pf.d['Temp'][1]<=1.25 and Z[1]/self.pf.d['Temp'][1]>=0.75: 	
             dShdh = 1.0/self.pf.d['Temp'][1]
         else:
             dShdh = 0.0
