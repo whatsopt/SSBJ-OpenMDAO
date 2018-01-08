@@ -3,11 +3,13 @@ SSBJ test case - http://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/1998023465
 Python implementation and OpenMDAO integration developed by
 Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 """
+from __future__ import print_function
 from sys import argv
 import re
 import numpy as np
 import matplotlib.pylab as plt
 import sqlitedict
+
 
 from openmdao.api import Problem
 from openmdao.api import SqliteRecorder, WebRecorder
@@ -56,44 +58,46 @@ prob.model.add_constraint('con_temp', upper=0.0)
 db_name = 'ssbj_mdf.sqlite'
 if "--plot" in argv:
     recorder = SqliteRecorder(db_name)
-    recorder2 = WebRecorder("", case_name="SSBJ MDF")
-    prob.driver.options['record_desvars'] = True
-    prob.driver.options['record_objectives'] = True
-    prob.driver.options['record_constraints'] = True
+    # recorder2 = WebRecorder("", case_name="SSBJ MDF")
+    prob.driver.recording_options['record_desvars'] = True
+    prob.driver.recording_options['record_objectives'] = True
+    prob.driver.recording_options['record_constraints'] = True
     prob.driver.add_recorder(recorder)
     # prob.driver.add_recorder(recorder2)
 
 #Run optimization
-prob.setup()
-prob.run_driver()
-prob.cleanup()
+prob.setup(check=True)
 
-print 'Z_opt=', prob['z']*scalers['z']
-print 'X_str_opt=', prob['x_str']*scalers['x_str']
-print 'X_aer_opt=', prob['x_aer']
-print 'X_pro_opt=', prob['x_pro']*scalers['x_pro']
-print 'R_opt=', prob['R']*scalers['R']
+if __name__=='__main__':
+    prob.run_driver()
+    prob.cleanup()
 
-if "--plot" in argv:
-    from openmdao.recorders.case_reader import CaseReader
+    print('Z_opt=', prob['z']*scalers['z'])
+    print('X_str_opt=', prob['x_str']*scalers['x_str'])
+    print('X_aer_opt=', prob['x_aer'])
+    print('X_pro_opt=', prob['x_pro']*scalers['x_pro'])
+    print('R_opt=', prob['R']*scalers['R'])
 
-    plt.figure()
+    if "--plot" in argv:
+        from openmdao.recorders.case_reader import CaseReader
 
-    cr = CaseReader(db_name)
-    print('Number of driver cases recorded =', cr.driver_cases.num_cases )
-    case_keys = cr.driver_cases.list_cases()
-    r = []
-    for case_key in case_keys:    
-        r.append(-cr.driver_cases.get_case(case_key).objectives['Perfo.R']*scalers['R'])
-    plt.plot(r)
-    plt.xlabel('Iteration')
-    plt.ylabel('Range (Nm)')
-    plt.show()
+        plt.figure()
 
-# Check R =~ 3964Nm
-R = float(prob['R']*scalers['R'])
-assert(R > 3963.)
-assert(R < 3965.)
-# from openmdao.devtools.problem_viewer.problem_viewer import view_model
-# view_model(prob)
+        cr = CaseReader(db_name)
+        print('Number of driver cases recorded =', cr.driver_cases.num_cases )
+        case_keys = cr.driver_cases.list_cases()
+        r = []
+        for case_key in case_keys:    
+            r.append(-cr.driver_cases.get_case(case_key).objectives['R']*scalers['R'])
+        plt.plot(r)
+        plt.xlabel('Iteration')
+        plt.ylabel('Range (Nm)')
+        plt.show()
+
+    # Check R =~ 3964Nm
+    R = float(prob['R']*scalers['R'])
+    assert(R > 3963.)
+    assert(R < 3965.)
+    # from openmdao.devtools.problem_viewer.problem_viewer import view_model
+    # view_model(prob)
 

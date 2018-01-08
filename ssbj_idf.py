@@ -3,6 +3,7 @@ SSBJ test case - http://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/1998023465
 Python implementation and OpenMDAO integration developed by
 Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 """
+from __future__ import print_function
 from sys import argv
 import re
 import numpy as np
@@ -17,6 +18,7 @@ from ssbj_mda import init_ssbj_mda
 
 # Optimization problem
 scalers = init_ssbj_mda()
+print(scalers)
 
 prob = Problem()
 prob.model = SSBJ_IDF_MDA(scalers)
@@ -71,10 +73,10 @@ prob.model.add_constraint('con_pro_str_we',upper=epsilon)
 db_name = 'ssbj_idf.sqlite'
 if "--plot" in argv:
     recorder = SqliteRecorder(db_name)
-    recorder2 = WebRecorder("", case_name="SSBJ IDF")
-    prob.driver.options['record_desvars'] = True
-    prob.driver.options['record_objectives'] = True
-    prob.driver.options['record_constraints'] = True
+#    recorder2 = WebRecorder("", case_name="SSBJ IDF")
+    prob.driver.recording_options['record_desvars'] = True
+    prob.driver.recording_options['record_objectives'] = True
+    prob.driver.recording_options['record_constraints'] = True
     prob.driver.add_recorder(recorder)
 #    prob.driver.add_recorder(recorder2)
 
@@ -83,11 +85,11 @@ prob.setup()
 prob.run_driver()
 #prob.cleanup()
 
-print 'Z_opt=', prob['z']*scalers['z']
-print 'X_str_opt=', prob['x_str']*scalers['x_str']
-print 'X_aer_opt=', prob['x_aer']
-print 'X_pro_opt=', prob['x_pro']*scalers['x_pro']
-print 'R_opt=', -prob['obj']*scalers['R']
+print('Z_opt=', prob['z']*scalers['z'])
+print('X_str_opt=', prob['x_str']*scalers['x_str'])
+print('X_aer_opt=', prob['x_aer'])
+print('X_pro_opt=', prob['x_pro']*scalers['x_pro'])
+print('R_opt=', -prob['obj']*scalers['R'])
 
 if "--plot" in argv:
     from openmdao.recorders.case_reader import CaseReader
@@ -98,7 +100,7 @@ if "--plot" in argv:
     case_keys = cr.driver_cases.list_cases()
     r = []
     for case_key in case_keys:    
-        r.append(-cr.driver_cases.get_case(case_key).objectives['Obj.obj']*scalers['R'])
+        r.append(-cr.driver_cases.get_case(case_key).objectives['obj']*scalers['R'])
     plt.plot(r)
     plt.xlabel('Iteration')
     plt.ylabel('Range (Nm)')
