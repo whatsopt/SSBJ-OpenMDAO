@@ -6,8 +6,15 @@ Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 from __future__ import print_function
 import numpy as np
 from openmdao.api import ExplicitComponent
-from common import PolynomialFunction
 # pylint: disable=C0103
+
+def performance(Z, fin, SFC, WT, WF):
+    if Z[1] <= 36089.:
+        theta = 1.0-6.875E-6*Z[1]
+    else:
+        theta = 0.7519
+    R = 661.0*np.sqrt(theta)*Z[2]*fin/SFC*np.log(abs(WT/(WT-WF)))
+    return R
 
 class Performance(ExplicitComponent):
 
@@ -36,11 +43,9 @@ class Performance(ExplicitComponent):
         SFC = inputs['SFC']*self.scalers['SFC']
         WT = inputs['WT']*self.scalers['WT']
         WF = inputs['WF']*self.scalers['WF']
-        if Z[1] <= 36089.:
-            theta = 1.0-6.875E-6*Z[1]
-        else:
-            theta = 0.7519
-        R = 661.0*np.sqrt(theta)*Z[2]*fin/SFC*np.log(abs(WT/(WT-WF)))
+
+        R = performance(Z, fin, SFC, WT, WF)
+
         outputs['R'] = R/self.scalers['R']
 
     def compute_partials(self, inputs, J):

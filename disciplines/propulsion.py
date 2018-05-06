@@ -9,6 +9,19 @@ from openmdao.api import ExplicitComponent
 from common import PolynomialFunction, WBE
 # pylint: disable=C0103
 
+def propulsion(pf, x_pro, Z, D):
+    Tbar = abs(x_pro) * 16168.6
+    Temp = pf([Z[2], Z[1], abs(x_pro)], [2, 4, 2], [.25]*3, "Temp")
+    ESF = (D/3.0)/Tbar
+    SFC = 1.1324 + 1.5344*Z[2] - 3.2956E-05*Z[1] - 1.6379E-04*Tbar \
+        - 0.31623*Z[2]**2 + 8.2138E-06*Z[2]*Z[1] - 10.496E-5*Tbar*Z[2] \
+        - 8.574E-11*Z[1]**2 + 3.8042E-9*Tbar*Z[1] + 1.06E-8*Tbar**2
+    WE = 3.0*WBE*abs(ESF)**1.05
+    TUAbar = 11484.0 + 10856.0 * Z[2] - 0.50802 * Z[1] \
+        + 3200.2*(Z[2]**2) - 0.29326 * Z[2] * Z[1] + 6.8572E-6 * Z[1]**2
+    DT = Tbar/TUAbar - 1.0
+    return Temp, ESF, SFC, WE, DT
+
 class Propulsion(ExplicitComponent):
 
     def __init__(self, scalers):
@@ -35,23 +48,15 @@ class Propulsion(ExplicitComponent):
 
     def compute(self, inputs, outputs):
         Z = inputs['z']*self.scalers['z']
-        Xpro = inputs['x_pro']*self.scalers['x_pro']
+        x_pro = inputs['x_pro']*self.scalers['x_pro']
+        D = inputs['D']*self.scalers['D']
 
-        Tbar = abs(Xpro) * 16168.6
-        outputs['Temp'] = self.pf.eval(
-            [Z[2], Z[1], abs(Xpro)],
-            [2, 4, 2], [.25]*3, "Temp")/self.scalers['Temp']
-        ESF = (inputs['D']*self.scalers['D']/3.0)/Tbar
+        Temp, ESF, SFC, WE, DT = propulsion(self.pf, x_pro, Z, D)
+
+        outputs['Temp'] = Temp/self.scalers['Temp']
         outputs['ESF'] = ESF/self.scalers['ESF']
-        SFC = 1.1324 + 1.5344*Z[2] - 3.2956E-05*Z[1] - 1.6379E-04*Tbar \
-            - 0.31623*Z[2]**2 + 8.2138E-06*Z[2]*Z[1] - 10.496E-5*Tbar*Z[2] \
-            - 8.574E-11*Z[1]**2 + 3.8042E-9*Tbar*Z[1] + 1.06E-8*Tbar**2
         outputs['SFC'] = SFC/self.scalers['SFC']
-        WE = 3.0*WBE*abs(ESF)**1.05
         outputs['WE'] = WE/self.scalers['WE']
-        TUAbar = 11484.0 + 10856.0 * Z[2] - 0.50802 * Z[1] \
-            + 3200.2*(Z[2]**2) - 0.29326 * Z[2] * Z[1] + 6.8572E-6 * Z[1]**2
-        DT = Tbar/TUAbar - 1.0
         outputs['DT'] = DT/self.scalers['DT']
 
     def compute_partials(self, inputs, J):
@@ -95,7 +100,7 @@ class Propulsion(ExplicitComponent):
         J['DT', 'z'][0, 2] = dDTdM/self.scalers['DT']*self.scalers['z'][2]
         J['DT', 'D'] = np.array([[0.0]])
         #############Temp
-        S_shifted, Ai, Aij = self.pf.eval([Z[2], Z[1], abs(Xpro)], [2, 4, 2],
+        S_shifted, Ai, Aij = self.pf([Z[2], Z[1], abs(Xpro)], [2, 4, 2],
                                           [.25]*3, "Temp", deriv=True)
         if abs(Xpro)/self.pf.d['Temp'][2]<=1.25 and abs(Xpro)/self.pf.d['Temp'][2]>=0.75:						  
             dSTdT = 1.0/self.pf.d['Temp'][2]

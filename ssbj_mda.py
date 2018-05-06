@@ -77,6 +77,7 @@ def init_ssbj_mda():
     # Mean point is chosen for the design variables
     scalers = {}
     scalers['z']=np.array([0.05,45000.,1.6,5.5,55.0,1000.0])
+    scalers['x_aer']=1.0
     scalers['x_str']=np.array([0.25,1.0])
     scalers['x_pro']=0.5
 

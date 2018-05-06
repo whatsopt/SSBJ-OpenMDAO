@@ -10,6 +10,33 @@ from openmdao.api import ExplicitComponent
 from common import PolynomialFunction, CDMIN
 # pylint: disable=C0103
 
+def aerodynamics(pf, x_aer, Z, WT, ESF, Theta):
+    if Z[1] <= 36089.0:
+        V = 1116.39 * Z[2] * np.sqrt(abs(1.0 - 6.875E-6*Z[1]))
+        rho = 2.377E-3 * (1. - 6.875E-6*Z[1])**4.2561
+    else:
+        V = 968.1 * abs(Z[2])
+        rho = 2.377E-3 * 0.2971 * np.exp((36089.0 - Z[1]) / 20806.7)
+    CL = WT / (0.5*rho*(V**2)*Z[5])
+    Fo2 = pf([ESF, abs(x_aer)], [1, 1], [.25]*2, "Fo2")
+
+    CDmin = CDMIN*Fo2 + 3.05*abs(Z[0])**(5.0/3.0) \
+            * abs(np.cos(Z[4]*np.pi/180.0))**1.5
+    if Z[2] >= 1:
+        k = abs(Z[3]) * (abs(Z[2])**2-1.0) * np.cos(Z[4]*np.pi/180.) \
+        / (4.* abs(Z[3])* np.sqrt(abs(Z[4]**2 - 1.) - 2.))
+    else:
+        k = (0.8 * np.pi * abs(Z[3]))**-1
+
+    Fo3 = pf([Theta], [5], [.25], "Fo3")
+    CD = (CDmin + k * CL**2) * Fo3
+    D = CD * 0.5 * rho * V**2 * Z[5]
+    fin = WT/D
+    L = WT
+    dpdx = pf([Z[0]], [1], [.25], "dpdx")
+
+    return L, D, fin, dpdx 
+
 class Aerodynamics(ExplicitComponent):
 
     def __init__(self, scalers):
@@ -36,35 +63,18 @@ class Aerodynamics(ExplicitComponent):
     def compute(self, inputs, outputs):
 
         Z = inputs['z']*self.scalers['z']
+        x_aer = inputs['x_aer']*self.scalers['x_aer']
         WT = inputs['WT']*self.scalers['WT']
         ESF = inputs['ESF']*self.scalers['ESF']
         Theta = inputs['Theta']*self.scalers['Theta']
 
-        if Z[1] <= 36089.0:
-            V = 1116.39 * Z[2] * np.sqrt(abs(1.0 - 6.875E-6*Z[1]))
-            rho = 2.377E-3 * (1. - 6.875E-6*Z[1])**4.2561
-        else:
-            V = 968.1 * abs(Z[2])
-            rho = 2.377E-3 * 0.2971 * np.exp((36089.0 - Z[1]) / 20806.7)
-        CL = WT / (0.5*rho*(V**2)*Z[5])
-        Fo2 = self.pf.eval([ESF, abs(inputs['x_aer'])], [1, 1], [.25]*2, "Fo2")
+        L, D, fin, dpdx = aerodynamics(self.pf, x_aer, Z, WT, ESF, Theta)
 
-        CDmin = CDMIN*Fo2 + 3.05*abs(Z[0])**(5.0/3.0) \
-                * abs(np.cos(Z[4]*np.pi/180.0))**1.5
-        if Z[2] >= 1:
-            k = abs(Z[3]) * (abs(Z[2])**2-1.0) * np.cos(Z[4]*np.pi/180.) \
-            / (4.* abs(Z[3])* np.sqrt(abs(Z[4]**2 - 1.) - 2.))
-        else:
-            k = (0.8 * np.pi * abs(Z[3]))**-1
-
-        Fo3 = self.pf.eval([Theta], [5], [.25], "Fo3")
-        CD = (CDmin + k * CL**2) * Fo3
-        outputs['L'] = inputs['WT']
-        D = CD * 0.5 * rho * V**2 * Z[5]
+        outputs['L'] = L/self.scalers['L']
         outputs['D'] = D/self.scalers['D']
-        fin = WT/D
         outputs['fin'] = fin/self.scalers['fin']
-        outputs['dpdx'] = self.pf.eval([Z[0]], [1], [.25], "dpdx")/self.scalers['dpdx']
+        outputs['dpdx'] = dpdx/self.scalers['dpdx']
+
 
     def compute_partials(self, inputs, partials):
 
@@ -82,7 +92,7 @@ class Aerodynamics(ExplicitComponent):
             rho = 2.377E-3*0.2971*np.exp((36089.0 - Z[1])/20806.7)
         CL = WT / (0.5*rho*(V**2)*Z[5])
         s_new = [ESF, abs(inputs['x_aer'])]
-        Fo2 = self.pf.eval(s_new, [1, 1], [.25]*2, "Fo2")
+        Fo2 = self.pf(s_new, [1, 1], [.25]*2, "Fo2")
 
         CDmin = CDMIN * Fo2 + 3.05 * abs(Z[0])**(5.0/3.0) \
                 * abs(np.cos(Z[4]*np.pi/180.0))**1.5
@@ -92,7 +102,7 @@ class Aerodynamics(ExplicitComponent):
         else:
             k = (0.8 * np.pi * abs(Z[3]))**-1
 
-        Fo3 = self.pf.eval([Theta], [5], [.25], "Fo3")
+        Fo3 = self.pf([Theta], [5], [.25], "Fo3")
         CD = (CDmin + k * CL**2) * Fo3
         D = CD * 0.5 * rho * V**2 * Z[5]
 
@@ -104,7 +114,7 @@ class Aerodynamics(ExplicitComponent):
         partials['L', 'ESF'] = np.array([[0.0]])
 
         # dD #################################################################
-        S_shifted, Ai, Aij = self.pf.eval(s_new,
+        S_shifted, Ai, Aij = self.pf(s_new,
                                           [1, 1], [.25]*2, "Fo2", deriv=True)
         if abs(inputs['x_aer'])/self.pf.d['Fo2'][1]>=0.75 and \
            abs(inputs['x_aer'])/self.pf.d['Fo2'][1]<=1.25:	  
@@ -165,7 +175,7 @@ class Aerodynamics(ExplicitComponent):
                                  dDdSref/self.scalers['D']])])*self.scalers['z']
         dDdWT = Fo3*k*2.0*WT/(0.5*rho*V**2*Z[5])
         partials['D', 'WT'] = np.array([[dDdWT/self.scalers['D']*self.scalers['WT']]])
-        S_shifted, Ai, Aij = self.pf.eval([Theta], [5], [.25], "Fo3", deriv=True)
+        S_shifted, Ai, Aij = self.pf([Theta], [5], [.25], "Fo3", deriv=True)
         if Theta/self.pf.d['Fo3'][0]>=0.75 and Theta/self.pf.d['Fo3'][0]<=1.25: 
             dSThetadTheta = 1.0/self.pf.d['Fo3'][0]
         else:
@@ -176,7 +186,7 @@ class Aerodynamics(ExplicitComponent):
         dDdTheta = 0.5*rho*V**2*Z[5]*dCDdTheta
         partials['D', 'Theta'] = np.array(
             [[dDdTheta/self.scalers['D']*self.scalers['Theta']]]).reshape((1, 1))
-        S_shifted, Ai, Aij = self.pf.eval(s_new,
+        S_shifted, Ai, Aij = self.pf(s_new,
                                           [1, 1], [.25]*2, "Fo2", deriv=True)
         if ESF/self.pf.d['Fo2'][0]>=0.75 and ESF/self.pf.d['Fo2'][0]<=1.25: 							  
             dSESFdESF = 1.0/self.pf.d['Fo2'][0]
@@ -193,7 +203,7 @@ class Aerodynamics(ExplicitComponent):
         # dpdx ################################################################
         partials['dpdx', 'x_aer'] = np.array([[0.0]])
         partials['dpdx', 'z'] = np.zeros((1, 6))
-        S_shifted, Ai, Aij = self.pf.eval([Z[0]], [1], [.25], "dpdx", deriv=True)
+        S_shifted, Ai, Aij = self.pf([Z[0]], [1], [.25], "dpdx", deriv=True)
         if Z[0]/self.pf.d['dpdx'][0]>=0.75 and Z[0]/self.pf.d['dpdx'][0]<=1.25:
             dStcdtc = 1.0/self.pf.d['dpdx'][0]
         else:
