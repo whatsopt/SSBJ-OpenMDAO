@@ -29,6 +29,7 @@ prob.driver = pyOptSparseDriver()
 optimizer = 'SLSQP'
 prob.driver.options['optimizer'] = optimizer
 #prob.driver.options['tol'] = 1e-3
+#prob.driver.options['debug_print'] = ['desvars','ln_cons','nl_cons','objs']
 
 #Design variables
 prob.model.add_design_var('z', lower=np.array([0.2, 0.666,0.875,0.45,0.72,0.5]),
@@ -83,6 +84,8 @@ if "--plot" in argv:
 #Run optimization
 prob.setup()
 prob.run_driver()
+#prob.run_model()
+#prob.check_partials()
 #prob.cleanup()
 
 print('Z_opt=', prob['z']*scalers['z'])

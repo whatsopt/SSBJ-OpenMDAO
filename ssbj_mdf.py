@@ -42,8 +42,8 @@ prob.model.add_objective('R', scaler=-1.)
 
 # Constraints
 prob.model.add_constraint('con_dt', upper=0.0)
-prob.model.add_constraint('con_Theta_up', upper=0.0)
-prob.model.add_constraint('con_Theta_low', upper=0.0)
+prob.model.add_constraint('con_theta_up', upper=0.0)
+prob.model.add_constraint('con_theta_low', upper=0.0)
 prob.model.add_constraint('con_sigma1', upper=0.0)
 prob.model.add_constraint('con_sigma2', upper=0.0)
 prob.model.add_constraint('con_sigma3', upper=0.0)

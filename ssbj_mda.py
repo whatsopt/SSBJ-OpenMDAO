@@ -37,36 +37,48 @@ class SSBJ_MDA(Group):
 
         #Disciplines
         sap_group = Group()
-        sap_group.add_subsystem('Struc', Structure(self.scalers), promotes=['*'])
-        sap_group.add_subsystem('Aero', Aerodynamics(self.scalers), promotes=['*'])
-        sap_group.add_subsystem('Propu',Propulsion(self.scalers),promotes=['*'])
+        sap_group.add_subsystem('Structure', Structure(self.scalers), promotes=['*'])
+        sap_group.add_subsystem('Aerodynamics', Aerodynamics(self.scalers), promotes=['*'])
+        sap_group.add_subsystem('Propulsion',Propulsion(self.scalers),promotes=['*'])
 
         sap_group.nonlinear_solver = NonlinearBlockGS()
         sap_group.nonlinear_solver.options['atol'] = 1.0e-3
         sap_group.linear_solver = ScipyKrylov()
-        self.add_subsystem('sap', sap_group, promotes=['*'])
+        self.add_subsystem('Mda', sap_group, promotes=['*'])
 
-        self.add_subsystem('Perfo', Performance(self.scalers), promotes=['*'])
+        self.add_subsystem('Performance', Performance(self.scalers), promotes=['*'])
 
         #Constraints
-        self.add_subsystem('con_Theta_sup', ExecComp('con_Theta_up = Theta*'+\
-                                           str(self.scalers['Theta'])+'-1.04'), promotes=['*'])
-        self.add_subsystem('con_Theta_inf', ExecComp('con_Theta_low = 0.96-Theta*'+\
-                                           str(self.scalers['Theta'])), promotes=['*'])
+        cstrs = ['con_theta_up = Theta*'+str(self.scalers['Theta'])+'-1.04',
+                 'con_theta_low = 0.96-Theta*'+ str(self.scalers['Theta']),
+                 'con_dpdx = dpdx*'+str(self.scalers['dpdx'])+'-1.04',
+                 'con1_esf = ESF*'+str(self.scalers['ESF'])+'-1.5',
+                 'con2_esf = 0.5-ESF*'+str(self.scalers['ESF']),
+                 'con_temp = Temp*'+str(self.scalers['Temp'])+'-1.02',
+                 'con_dt=DT'
+                 ]
         for i in range(5):
-            self.add_subsystem('con_Sigma'+str(i+1), ExecComp('con_sigma'+str(i+1)+'=sigma['+str(i)+']*'+\
-                                                    str(self.scalers['sigma'][i])+'-1.9',
-                                                    sigma=np.zeros(5)), promotes=['*'])
-        self.add_subsystem('con_Dpdx', ExecComp('con_dpdx=dpdx*'+str(self.scalers['dpdx'])+'-1.04'),
-                 promotes=['*'])
-        self.add_subsystem('con1_ESF', ExecComp('con1_esf=ESF*'+str(self.scalers['ESF'])+'-1.5'),
-                 promotes=['*'])
-        self.add_subsystem('con2_ESF', ExecComp('con2_esf=0.5-ESF*'+str(self.scalers['ESF'])),
-                 promotes=['*'])
-        self.add_subsystem('con_Temp', ExecComp('con_temp=Temp*'+str(self.scalers['Temp'])+'-1.02'),
-                 promotes=['*'])
-
-        self.add_subsystem('con_DT', ExecComp('con_dt=DT'), promotes=['*'])
+            cstrs.append('con_sigma'+str(i+1)+' = sigma['+str(i)+']*'+ str(self.scalers['sigma'][i])+'-1.9')
+        self.add_subsystem('Constraints', ExecComp(cstrs, sigma=np.zeros(5)), promotes=['*'])
+        
+#         self.add_subsystem('con_Theta_sup', ExecComp('con_Theta_up = Theta*'+\
+#                                            str(self.scalers['Theta'])+'-1.04'), promotes=['*'])
+#         self.add_subsystem('con_Theta_inf', ExecComp('con_Theta_low = 0.96-Theta*'+\
+#                                            str(self.scalers['Theta'])), promotes=['*'])
+#         for i in range(5):
+#             self.add_subsystem('con_Sigma'+str(i+1), ExecComp('con_sigma'+str(i+1)+'=sigma['+str(i)+']*'+\
+#                                                     str(self.scalers['sigma'][i])+'-1.9',
+#                                                     sigma=np.zeros(5)), promotes=['*'])
+#         self.add_subsystem('con_Dpdx', ExecComp('con_dpdx=dpdx*'+str(self.scalers['dpdx'])+'-1.04'),
+#                  promotes=['*'])
+#         self.add_subsystem('con1_ESF', ExecComp('con1_esf=ESF*'+str(self.scalers['ESF'])+'-1.5'),
+#                  promotes=['*'])
+#         self.add_subsystem('con2_ESF', ExecComp('con2_esf=0.5-ESF*'+str(self.scalers['ESF'])),
+#                  promotes=['*'])
+#         self.add_subsystem('con_Temp', ExecComp('con_temp=Temp*'+str(self.scalers['Temp'])+'-1.02'),
+#                  promotes=['*'])
+# 
+#         self.add_subsystem('con_DT', ExecComp('con_dt=DT'), promotes=['*'])
 
 def init_ssbj_mda():
     """
