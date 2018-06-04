@@ -13,7 +13,7 @@ import sqlitedict
 
 from openmdao.api import Problem
 from openmdao.api import SqliteRecorder, WebRecorder
-from openmdao.api import ScipyOptimizer #, pyOptSparseDriver
+from openmdao.drivers.scipy_optimizer import ScipyOptimizeDriver
 
 from ssbj_mda import init_ssbj_mda, SSBJ_MDA
 # pylint: disable=C0103
@@ -24,7 +24,7 @@ prob = Problem()
 prob.model = SSBJ_MDA(scalers)
 
 # Optimizer options
-prob.driver = ScipyOptimizer()
+prob.driver = ScipyOptimizeDriver()
 #prob.driver = pyOptSparseDriver()
 optimizer ='SLSQP'
 prob.driver.options['optimizer'] = optimizer
