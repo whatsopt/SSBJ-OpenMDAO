@@ -142,6 +142,7 @@ def init_ssbj_mda():
 
     return scalers
 
+
 if __name__ == "__main__":
     scalers = init_ssbj_mda()
     print(scalers)
