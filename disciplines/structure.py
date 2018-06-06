@@ -655,7 +655,7 @@ class Structure(ExplicitComponent):
 
 if __name__ == "__main__": # pragma: no cover
 
-    from openmdao.api import Component, Problem, Group, IndepVarComp
+    from openmdao.api import Problem, IndepVarComp
     scalers = {}
     scalers['z'] = np.array([0.05, 45000., 1.6, 5.5, 55.0, 1000.0])
     scalers['x_str'] = np.array([0.25, 1.0])
@@ -674,6 +674,6 @@ if __name__ == "__main__": # pragma: no cover
                  promotes=['*'])
     top.model.add_subsystem('L_in', IndepVarComp('L', 0.888), promotes=['*'])
     top.model.add_subsystem('WE_in', IndepVarComp('WE', 1.49), promotes=['*'])
-    top.model.add_subsystem('Str1', Structure(scalers, PolynomialFunction()), promotes=['*'])
+    top.model.add_subsystem('Str1', Structure(scalers), promotes=['*'])
     top.setup()
     top.check_partials(compact_print=True)
