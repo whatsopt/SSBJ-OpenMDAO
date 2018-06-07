@@ -10,8 +10,8 @@ import numpy as np
 import matplotlib.pylab as plt
 
 from openmdao.api import Problem
-from openmdao.api import SqliteRecorder, WebRecorder
-from openmdao.api import ScipyOptimizer, pyOptSparseDriver
+from openmdao.api import SqliteRecorder, WebRecorder, ScipyOptimizeDriver, pyOptSparseDriver
+
 from ssbj_idf_mda import SSBJ_IDF_MDA
 from ssbj_mda import init_ssbj_mda
 # pylint: disable=C0103
@@ -24,7 +24,7 @@ prob = Problem()
 prob.model = SSBJ_IDF_MDA(scalers)
 
 # Optimizer options
-# prob.driver = ScipyOptimizer()
+# prob.driver = ScipyOptimizeDriver()
 prob.driver = pyOptSparseDriver()
 optimizer = 'SLSQP'
 prob.driver.options['optimizer'] = optimizer
@@ -82,7 +82,7 @@ if "--plot" in argv:
 #    prob.driver.add_recorder(recorder2)
 
 #Run optimization
-prob.setup()
+prob.setup(mode='fwd')
 prob.run_driver()
 #prob.run_model()
 #prob.check_partials()
