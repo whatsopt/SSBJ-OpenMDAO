@@ -64,7 +64,7 @@ if "--plot" in argv:
     # prob.driver.add_recorder(recorder2)
 
 #Run optimization
-prob.setup(check=True)
+prob.setup(check=True, mode='fwd')
 
 if __name__=='__main__':
     prob.run_driver()

@@ -58,7 +58,7 @@ class SSBJ_MDA(Group):
                  'con_dt=DT'
                  ]
         for i in range(5):
-            cstrs.append('con_sigma'+str(i+1)+' = sigma['+str(i)+']*'+ str(self.scalers['sigma'][i])+'-1.9')
+            cstrs.append('con_sigma'+str(i+1)+' = sigma['+str(i)+']*'+ str(self.scalers['sigma'][i])+'-1.09')
         self.add_subsystem('Constraints', ExecComp(cstrs, sigma=np.zeros(5)), promotes=['*'])
         
 #         self.add_subsystem('con_Theta_sup', ExecComp('con_Theta_up = Theta*'+\
