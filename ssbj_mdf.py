@@ -11,7 +11,7 @@ import matplotlib.pylab as plt
 import sqlitedict
 
 
-from openmdao.api import Problem, SqliteRecorder, WebRecorder, ScipyOptimizeDriver
+from openmdao.api import Problem, SqliteRecorder, ScipyOptimizeDriver
 
 from ssbj_mda import init_ssbj_mda, SSBJ_MDA
 # pylint: disable=C0103
