@@ -1,4 +1,11 @@
-import math
+"""
+SSBJ test case - http://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19980234657.pdf
+Python implementation and OpenMDAO integration developed by
+Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
+Collaborative Optimization (CO) strategy optimization and postprocessing scripts
+developed by Imco van Gent of TU Delft, Faculty of Aerospace Engineering
+"""
+import datetime
 
 from openmdao.api import *
 
@@ -11,36 +18,41 @@ from ssbj_mda import init_ssbj_mda
 import numpy as np
 
 
+# Set keyword for case reader files (to be used in postprocessing script)
+cr_files_key_word = 'results2'  # or use: str(datetime.datetime.now())
+
+
 class SubOpt(ExplicitComponent):
     """Suboptimization component for the CO approach."""
+
     def initialize(self):
         self.options.declare('discipline')
         self.options.declare('scalers')
+        self.options.declare('driver')
 
     def setup(self):
         if self.options['discipline'] == 'structures':
             # Add system-level inputs
-            self.add_input('z', val=np.array([1.0,1.0,1.0,1.0,1.0,1.0]))
-            self.add_input('L_hat', val=1.0)
+            self.add_input('z', val=np.array([1.2,1.0,1.0,1.0,1.0,1.0]))
             self.add_input('WE_hat', val=1.0)
             self.add_input('WF_hat', val=1.0)
             self.add_input('Theta_hat', val=1.0)
             self.add_input('WT_hat', val=1.0)
 
             # Add system-level outputs
-            self.add_output('z_hat', val=np.ones(6))
+            self.add_output('z_hat', val=np.array([1.2,1.0,1.0,1.0,1.0,1.0]))
             self.add_output('WF', val=1.0)
             self.add_output('Theta', val=1.0)
             self.add_output('WT', val=1.0)
 
             # Declare partials
-            self.declare_partials('z_hat', ['z', 'L_hat', 'WE_hat', 'WF_hat', 'Theta_hat', 'WT_hat'],
+            self.declare_partials('z_hat', ['z', 'WE_hat', 'WF_hat', 'Theta_hat', 'WT_hat'],
                                   method='fd', step=1e-4, step_calc='abs')
-            self.declare_partials('WF', ['z', 'L_hat', 'WE_hat', 'WF_hat', 'Theta_hat', 'WT_hat'],
+            self.declare_partials('WF', ['z', 'WE_hat', 'WF_hat', 'Theta_hat', 'WT_hat'],
                                   method='fd', step=1e-4, step_calc='abs')
-            self.declare_partials('Theta', ['z', 'L_hat', 'WE_hat', 'WF_hat', 'Theta_hat', 'WT_hat'],
+            self.declare_partials('Theta', ['z', 'WE_hat', 'WF_hat', 'Theta_hat', 'WT_hat'],
                                   method='fd', step=1e-4, step_calc='abs')
-            self.declare_partials('WT', ['z', 'L_hat', 'WE_hat', 'WF_hat', 'Theta_hat', 'WT_hat'],
+            self.declare_partials('WT', ['z', 'WE_hat', 'WF_hat', 'Theta_hat', 'WT_hat'],
                                   method='fd', step=1e-4, step_calc='abs')
 
             # Set subproblem
@@ -49,7 +61,7 @@ class SubOpt(ExplicitComponent):
             # Define the copies so that OpenMDAO can compute derivs w.r.t. these variables
             params = p.model.add_subsystem('params', IndepVarComp(), promotes=['*'])
             params.add_output('z', np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]))
-            params.add_output('L_hat', val=1.0)
+            #params.add_output('L_hat', val=1.0)
             params.add_output('WE_hat', val=1.0)
             params.add_output('WF_hat', val=1.0)
             params.add_output('Theta_hat', val=1.0)
@@ -57,37 +69,31 @@ class SubOpt(ExplicitComponent):
 
             # Define design variables of subproblem
             des_vars = p.model.add_subsystem('des_vars', IndepVarComp(), promotes=['*'])
-            des_vars.add_output('z_hat', val=np.ones(6))
-            des_vars.add_output('x_str', val=np.ones(2))
+            des_vars.add_output('z_hat', val=np.array([1.2,1.0,1.0,1.0,1.0,1.0]))
+            des_vars.add_output('x_str', val=np.array([1.6, 0.75]))
 
             # Define components
             # Disciplinary analysis
             p.model.add_subsystem('structures', Structure(self.options['scalers']))
 
             # Local constraint functions
-            cstrs = ['con_theta_up = Theta*' + str(self.options['scalers']['Theta']) + '-1.04',
-                     'con_theta_low = 0.96-Theta*' + str(self.options['scalers']['Theta'])]
+            cstrs = ['con_theta = Theta*' + str(self.options['scalers']['Theta']) + '-1.04']
             for i in range(5):
-                cstrs.append(
-                    'con_sigma' + str(i + 1) + ' = sigma[' + str(i) + ']*' + str(self.options['scalers']['sigma'][i]) + '-1.09')
+                cstrs.append('con_sigma' + str(i + 1) + ' = sigma[' + str(i) + ']*' +
+                             str(self.options['scalers']['sigma'][i]) + '-1.09')
             p.model.add_subsystem('constraints', ExecComp(cstrs, sigma=np.zeros(5)), promotes_outputs=['*'])
 
             # Local objective
-            # p.model.add_subsystem('J', ExecComp('J_struc = ((z[0]-z_hat[0])**2 + (z[3]-z_hat[3])**2 +'
-            #                                     '(z[4]-z_hat[4])**2 + (z[5]-z_hat[5])**2 + (WF_hat-WF)**2 + '
-            #                                     '(Theta_hat-Theta)**2 + (WT_hat-WT)**2)**.5',
-            #                                     z=np.ones(6), z_hat=np.ones(6)))
-            p.model.add_subsystem('J', Jcalc(input_var_sets=[['z', 'z_hat', np.ones(6) + 0.1, [0, 3, 4, 5]],
-                                                             ['WF_hat', 'WF', 1.1],
-                                                             ['Theta_hat', 'Theta', 1.1],
-                                                             ['WT_hat', 'WT', 1.1]],
-                                             take_square_root=True))
+            p.model.add_subsystem('J', ExecComp('J = ((z[0]-z_hat[0])**2 + (z[3]-z_hat[3])**2 +'
+                                                '(z[4]-z_hat[4])**2 + (z[5]-z_hat[5])**2 + (WF_hat-WF)**2 + '
+                                                '(Theta_hat-Theta)**2 + (WT_hat-WT)**2)**.5',
+                                                z=np.ones(6), z_hat=np.ones(6)))
 
             # Connect variables in sub-problem
             # Structures component inputs
             p.model.connect('z_hat', 'structures.z')
             p.model.connect('x_str', 'structures.x_str')
-            p.model.connect('L_hat', 'structures.L')
+            p.model.connect('WT_hat', 'structures.L')
             p.model.connect('WE_hat', 'structures.WE')
 
             # Constraints inputs
@@ -105,24 +111,37 @@ class SubOpt(ExplicitComponent):
             p.model.connect('structures.WT', 'J.WT')
 
             # Set subproblem optimizer
-            p.driver = ScipyOptimizeDriver()
+            p.driver = self.options['driver']
             p.driver.options['optimizer'] = 'SLSQP'
-            p.driver.options['maxiter'] = 100
-            p.driver.options['tol'] = 1e-8
-            #p.driver.options['debug_print'] = ['desvars', 'ln_cons', 'nl_cons', 'objs']
+            if isinstance(self.options['driver'], ScipyOptimizeDriver):
+                p.driver.options['maxiter'] = 100
+                p.driver.options['tol'] = 1e-8
+            elif isinstance(self.options['driver'], pyOptSparseDriver):
+                p.driver.opt_settings['MAXIT'] = 100
+                p.driver.opt_settings['ACC'] = 1e-6
+
+            # Set recording options, not that this recorder will be used in all sub-level optimizations, but is only
+            # defined once
+            recorder = SqliteRecorder(os.path.join('files', 'ssbj_cr_{}_subsystems.sql'.format(cr_files_key_word)))
+            p.driver.add_recorder(recorder)
+            p.driver.recording_options['includes'] = []
+            p.driver.recording_options['record_objectives'] = True
+            p.driver.recording_options['record_constraints'] = True
+            p.driver.recording_options['record_desvars'] = True
+            p.driver.recording_options['record_metadata'] = True
 
             # Add design variables
             p.model.add_design_var('x_str', lower=np.array([0.4, 0.75]), upper=np.array([1.6, 1.25]))
             p.model.add_design_var('z_hat', lower=np.array([0.2, 0.666, 0.875, 0.45, 0.72, 0.5]),
-                                   upper=np.array([1.8, 1.333, 1.125, 1.45, 1.27, 1.5]),
-                                   indices=[0,3,4,5])
+                                   upper=np.array([1.8, 1.333, 1.125, 1.45, 1.27, 1.5]))#,
+                                   #indices=[0,3,4,5])
+                                   # TODO: The use of indices does not work properly (issue reported)
 
             # Add objective
             p.model.add_objective('J.J')
 
             # Add constraints
-            p.model.add_constraint('con_theta_up', upper=0.0)
-            p.model.add_constraint('con_theta_low', upper=0.0)
+            p.model.add_constraint('con_theta', upper=0.0, lower=-0.04)
             p.model.add_constraint('con_sigma1', upper=0.0)
             p.model.add_constraint('con_sigma2', upper=0.0)
             p.model.add_constraint('con_sigma3', upper=0.0)
@@ -134,15 +153,14 @@ class SubOpt(ExplicitComponent):
             p.final_setup()
 
             # View model
-            # view_model(p, outfile='co_struc.html')
+            view_model(p, outfile=os.path.join('files', 'co_n2_struc.html'), show_browser=False)
 
         elif self.options['discipline'] == 'aerodynamics':
-            # Add system-level inputs
+            # Add system-level inputs (N.B. L_hat is not used, instead L_hat = W_hat is assumed)
             self.add_input('z', val=np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]))
             self.add_input('ESF_hat', val=1.0)
             self.add_input('WT_hat', val=1.0)
             self.add_input('Theta_hat', val=1.0)
-            self.add_input('L_hat', val=1.0)
             self.add_input('D_hat', val=1.0)
             self.add_input('fin_hat', val=1.0)
 
@@ -153,13 +171,13 @@ class SubOpt(ExplicitComponent):
             self.add_output('D', val=1.0)
 
             # Declare partials
-            self.declare_partials('z_hat', ['z', 'ESF_hat', 'WT_hat', 'Theta_hat', 'L_hat', 'D_hat', 'fin_hat'],
+            self.declare_partials('z_hat', ['z', 'ESF_hat', 'WT_hat', 'Theta_hat', 'D_hat', 'fin_hat'],
                                   method='fd', step=1e-4, step_calc='abs')
-            self.declare_partials('L', ['z', 'ESF_hat', 'WT_hat', 'Theta_hat', 'L_hat', 'D_hat', 'fin_hat'],
+            self.declare_partials('L', ['z', 'ESF_hat', 'WT_hat', 'Theta_hat', 'D_hat', 'fin_hat'],
                                   method='fd', step=1e-4, step_calc='abs')
-            self.declare_partials('fin', ['z', 'ESF_hat', 'WT_hat', 'Theta_hat', 'L_hat', 'D_hat', 'fin_hat'],
+            self.declare_partials('fin', ['z', 'ESF_hat', 'WT_hat', 'Theta_hat', 'D_hat', 'fin_hat'],
                                   method='fd', step=1e-4, step_calc='abs')
-            self.declare_partials('D', ['z', 'ESF_hat', 'WT_hat', 'Theta_hat', 'L_hat', 'D_hat', 'fin_hat'],
+            self.declare_partials('D', ['z', 'ESF_hat', 'WT_hat', 'Theta_hat', 'D_hat', 'fin_hat'],
                                   method='fd', step=1e-4, step_calc='abs')
 
             # Set subproblem
@@ -171,7 +189,6 @@ class SubOpt(ExplicitComponent):
             params.add_output('ESF_hat', val=1.0)
             params.add_output('WT_hat', val=1.0)
             params.add_output('Theta_hat', val=1.0)
-            params.add_output('L_hat', val=1.0)
             params.add_output('D_hat', val=1.0)
             params.add_output('fin_hat', val=1.0)
 
@@ -189,14 +206,8 @@ class SubOpt(ExplicitComponent):
                                   ExecComp('con_dpdx = dpdx*' + str(self.options['scalers']['dpdx']) + '-1.04'))
 
             # Local objective
-            # p.model.add_subsystem('J', ExecComp('J_aero = (sum((z-z_hat)**2) + (fin_hat-fin)**2 + '
-            #                                     '(D_hat-D)**2 + (L_hat-L)**2)**.5',
-            #                                     z=np.zeros(6), z_hat=np.zeros(6)))
-            p.model.add_subsystem('J', Jcalc(input_var_sets=[['z', 'z_hat', np.ones(6) + .1],
-                                                             ['fin_hat', 'fin', 1.1],
-                                                             ['D_hat', 'D', 1.1],
-                                                             ['L_hat', 'L', 1.1]],
-                                             take_square_root=True))
+            p.model.add_subsystem('J', ExecComp('J = (sum((z-z_hat)**2) + (fin_hat-fin)**2 + (D_hat-D)**2 + '
+                                                '(WT_hat-L)**2)**.5', z=np.zeros(6), z_hat=np.zeros(6)))
 
             # Connect variables in sub-problem
             # Aerodynamics component inputs
@@ -216,15 +227,18 @@ class SubOpt(ExplicitComponent):
             p.model.connect('aerodynamics.fin', 'J.fin')
             p.model.connect('D_hat', 'J.D_hat')
             p.model.connect('aerodynamics.D', 'J.D')
-            p.model.connect('L_hat', 'J.L_hat')
+            p.model.connect('WT_hat', 'J.WT_hat')
             p.model.connect('aerodynamics.L', 'J.L')
 
             # Set subproblem optimizer
-            p.driver = ScipyOptimizeDriver()
+            p.driver = self.options['driver']
             p.driver.options['optimizer'] = 'SLSQP'
-            p.driver.options['maxiter'] = 100
-            p.driver.options['tol'] = 1e-8
-            #p.driver.options['debug_print'] = ['desvars', 'ln_cons', 'nl_cons', 'objs']
+            if isinstance(self.options['driver'], ScipyOptimizeDriver):
+                p.driver.options['maxiter'] = 100
+                p.driver.options['tol'] = 1e-8
+            elif isinstance(self.options['driver'], pyOptSparseDriver):
+                p.driver.opt_settings['MAXIT'] = 100
+                p.driver.opt_settings['ACC'] = 1e-6
 
             # Add design variables
             p.model.add_design_var('x_aer', lower=0.75, upper=1.25)
@@ -242,7 +256,7 @@ class SubOpt(ExplicitComponent):
             p.final_setup()
 
             # View model
-            # view_model(p, outfile='co_aero.html')
+            view_model(p, outfile=os.path.join('files', 'co_n2_aero.html'), show_browser=False)
         elif self.options['discipline'] == 'propulsion':
             # Add system-level inputs
             self.add_input('z', val=np.ones(6))
@@ -288,22 +302,16 @@ class SubOpt(ExplicitComponent):
             p.model.add_subsystem('propulsion', Propulsion(self.options['scalers']))
 
             # Local constraint functions
-            cnstrnts = ['con1_esf = ESF*' + str(self.options['scalers']['ESF']) + '-1.5',
-                        'con2_esf = 0.5-ESF*' + str(self.options['scalers']['ESF']),
+            cnstrnts = ['con_esf = ESF*' + str(self.options['scalers']['ESF']) + '-1.5',
                         'con_temp = Temp*' + str(self.options['scalers']['Temp']) + '-1.02',
                         'con_dt=DT']
 
             p.model.add_subsystem('constraints', ExecComp(cnstrnts))
 
             # Local objective
-            # p.model.add_subsystem('J', ExecComp('J_prop = ((z[1]-z_hat[1])**2 + (z[2]-z_hat[2])**2 + '
-            #                                     '(ESF_hat-ESF)**2 + (WE_hat-WE)**2 + (SFC_hat-SFC)**2)**.5',
-            #                                     z=np.zeros(6), z_hat=np.zeros(6)))
-            p.model.add_subsystem('J', Jcalc(input_var_sets=[['z', 'z_hat', np.ones(6) + .1, [1, 2]],
-                                                             ['ESF_hat', 'ESF', 1.1],
-                                                             ['WE_hat', 'WE', 1.1],
-                                                             ['SFC_hat', 'SFC', 1.1]],
-                                             take_square_root=True))
+            p.model.add_subsystem('J', ExecComp('J = ((z[1]-z_hat[1])**2 + (z[2]-z_hat[2])**2 + '
+                                                '(ESF_hat-ESF)**2 + (WE_hat-WE)**2 + (SFC_hat-SFC)**2)**.5',
+                                                z=np.zeros(6), z_hat=np.zeros(6)))
 
             # Connect variables in sub-problem
             # Aerodynamics component inputs
@@ -327,11 +335,14 @@ class SubOpt(ExplicitComponent):
             p.model.connect('propulsion.SFC', 'J.SFC')
 
             # Set subproblem optimizer
-            p.driver = ScipyOptimizeDriver()
+            p.driver = self.options['driver']
             p.driver.options['optimizer'] = 'SLSQP'
-            p.driver.options['maxiter'] = 100
-            p.driver.options['tol'] = 1e-8
-            #p.driver.options['debug_print'] = ['desvars', 'ln_cons', 'nl_cons', 'objs']
+            if isinstance(self.options['driver'], ScipyOptimizeDriver):
+                p.driver.options['maxiter'] = 100
+                p.driver.options['tol'] = 1e-8
+            elif isinstance(self.options['driver'], pyOptSparseDriver):
+                p.driver.opt_settings['MAXIT'] = 100
+                p.driver.opt_settings['ACC'] = 1e-6
 
             # Add design variables
             p.model.add_design_var('x_pro', lower=0.18, upper=1.81)
@@ -343,8 +354,7 @@ class SubOpt(ExplicitComponent):
             p.model.add_objective('J.J')
 
             # Add constraints
-            p.model.add_constraint('constraints.con1_esf', upper=0.0)
-            p.model.add_constraint('constraints.con2_esf', upper=0.0)
+            p.model.add_constraint('constraints.con_esf', upper=0.0, lower=-1.)
             p.model.add_constraint('constraints.con_temp', upper=0.0)
             p.model.add_constraint('constraints.con_dt', upper=0.0)
 
@@ -353,7 +363,7 @@ class SubOpt(ExplicitComponent):
             p.final_setup()
 
             # View model
-            # view_model(p, outfile='co_prop.html')
+            view_model(p, outfile=os.path.join('files', 'co_prop.html'), show_browser=False)
         else:
             raise IOError('Unknown discipline {} provided in setup function.'.format(self.options['discipline']))
 
@@ -362,7 +372,6 @@ class SubOpt(ExplicitComponent):
         if self.options['discipline'] == 'structures':
             # Push any global inputs down
             p['z'] = inputs['z']
-            p['L_hat'] = inputs['L_hat']
             p['WE_hat'] = inputs['WE_hat']
             p['WF_hat'] = inputs['WF_hat']
             p['Theta_hat'] = inputs['Theta_hat']
@@ -383,7 +392,6 @@ class SubOpt(ExplicitComponent):
             p['ESF_hat'] = inputs['ESF_hat']
             p['WT_hat'] = inputs['WT_hat']
             p['Theta_hat'] = inputs['Theta_hat']
-            p['L_hat'] = inputs['L_hat']
             p['D_hat'] = inputs['D_hat']
             p['fin_hat'] = inputs['fin_hat']
 
@@ -417,134 +425,50 @@ class SubOpt(ExplicitComponent):
             raise IOError('Unknown discipline {} provided in setup function.'.format(self.options['discipline']))
 
 
-class Jcalc(ExplicitComponent):
-
-    def initialize(self):
-        self.options.declare('input_var_sets')
-        self.options.declare('take_square_root', default=True)
-
-    def setup(self):
-        defined_inputs = []
-        for input_set in self.options['input_var_sets']:
-            if input_set[0] not in defined_inputs:
-                self.add_input(input_set[0], val=input_set[2])
-                defined_inputs.append(input_set[0])
-            if input_set[1] not in defined_inputs:
-                self.add_input(input_set[1], val=input_set[2])
-
-        self.add_output('J', val=1.)
-
-        for input_set in self.options['input_var_sets']:
-            self.declare_partials('J', input_set[0])
-            self.declare_partials('J', input_set[1])
-
-    def compute(self, inputs, outputs):
-        J = 0.0
-        for input_set in self.options['input_var_sets']:
-            if len(input_set) == 4:  # indices are provided
-                input_set0 = np.take(inputs[input_set[0]], input_set[3])
-                input_set1 = np.take(inputs[input_set[1]], input_set[3])
-            else:
-                input_set0 = inputs[input_set[0]]
-                input_set1 = inputs[input_set[1]]
-            J += (sum((input_set0-input_set1)**2))
-        if self.options['take_square_root']:
-            outputs['J'] = J**.5
-        else:
-            outputs['J'] = J
-
-    def compute_partials(self, inputs, partials):
-        denom_term = 0.0
-        if self.options['take_square_root']:
-            for input_set in self.options['input_var_sets']:
-                if len(input_set) == 4:  # indices are provided
-                    input_set0 = np.take(inputs[input_set[0]], input_set[3])
-                    input_set1 = np.take(inputs[input_set[1]], input_set[3])
-                else:
-                    input_set0 = inputs[input_set[0]]
-                    input_set1 = inputs[input_set[1]]
-                denom_term += (sum((input_set0 - input_set1) ** 2))
-            denom_term = denom_term**.5
-        else:
-            denom_term = 0.5
-        for input_set in self.options['input_var_sets']:
-            if denom_term == 0.0:
-                partials['J', input_set[0]] = np.zeros(len(inputs[input_set[0]]))
-                partials['J', input_set[1]] = np.zeros(len(inputs[input_set[1]]))
-            else:
-                if len(input_set) == 4: # indices are provided
-                    input_set0 = np.take(inputs[input_set[0]], input_set[3])
-                    input_set1 = np.take(inputs[input_set[1]], input_set[3])
-                else:
-                    input_set0 = inputs[input_set[0]]
-                    input_set1 = inputs[input_set[1]]
-                partial0 = (input_set0-input_set1)/denom_term
-                partial1 = (input_set1-input_set0)/denom_term
-                if len(input_set) == 4:
-                    partials['J', input_set[0]] = np.zeros(len(inputs[input_set[0]]))
-                    partials['J', input_set[1]] = np.zeros(len(inputs[input_set[1]]))
-                    for i, j in enumerate(input_set[3]):
-                        partials['J', input_set[0]][0,j] = partial0[i]
-                        partials['J', input_set[1]][0,j] = partial1[i]
-                else:
-                    partials['J', input_set[0]] = partial0
-                    partials['J', input_set[1]] = partial1
-
-
 class SsbjCO(Group):
     """Main group for the SSBJ case to run it using Collaborative Optimization."""
-    def __init__(self, scalers):
-        super(SsbjCO, self).__init__()
-        self.scalers = scalers
+    def initialize(self):
+        self.options.declare('scalers')
+        self.options.declare('subopt_driver')
 
     def setup(self):
-
         # Define system-level design variables
         des_vars = self.add_subsystem('des_vars', IndepVarComp(), promotes=['*'])
         # Add global design variables
-        des_vars.add_output('z', val=np.array([1.0,1.0,1.0,1.0,1.0,1.0]))
-        # Add coupling copies for interdisciplinary couplings
-        des_vars.add_output('L_hat', val=1.0)
-        des_vars.add_output('D_hat', val=1.0)
-        des_vars.add_output('WE_hat', val=1.0)
-        des_vars.add_output('WT_hat', val=1.0)
-        des_vars.add_output('Theta_hat', val=1.0)
-        des_vars.add_output('WF_hat', val=1.0)
-        des_vars.add_output('ESF_hat', val=1.0)
-        des_vars.add_output('fin_hat', val=1.0)
-        des_vars.add_output('SFC_hat', val=1.0)
+        des_vars.add_output('z', val=np.ones(6))
+        # Add coupling copies for interdisciplinary couplings (N.B. L_hat is not used, but L_hat = W_hat at this level)
+        des_vars.add_output('D_hat', val=1.)
+        des_vars.add_output('WE_hat', val=1.)
+        des_vars.add_output('WT_hat', val=1.)
+        des_vars.add_output('Theta_hat', val=1.)
+        des_vars.add_output('WF_hat', val=1.)
+        des_vars.add_output('ESF_hat', val=1.)
+        des_vars.add_output('fin_hat', val=1.)
+        des_vars.add_output('SFC_hat', val=1.)
 
         # Add suboptimizations
-        self.add_subsystem('subopt_struc', SubOpt(discipline='structures', scalers=self.scalers))
-        self.add_subsystem('subopt_aero', SubOpt(discipline='aerodynamics', scalers=self.scalers))
-        self.add_subsystem('subopt_prop', SubOpt(discipline='propulsion', scalers=self.scalers))
+        self.add_subsystem('subopt_struc', SubOpt(discipline='structures',
+                                                  scalers=self.options['scalers'],
+                                                  driver=self.options['subopt_driver']))
+        self.add_subsystem('subopt_aero', SubOpt(discipline='aerodynamics',
+                                                 scalers=self.options['scalers'],
+                                                 driver=self.options['subopt_driver']))
+        self.add_subsystem('subopt_prop', SubOpt(discipline='propulsion',
+                                                 scalers=self.options['scalers'],
+                                                 driver=self.options['subopt_driver']))
 
         # Add system-level analyses
-        self.add_subsystem('performance', Performance(self.scalers))
-        # J_tot_expr = 'J = ((z[0]-z_hat_struc[0])**2 + (z[3]-z_hat_struc[3])**2 + (z[4]-z_hat_struc[4])**2 ' \
-        #              '+ (z[5]-z_hat_struc[5])**2 + (WF_hat-WF_struc)**2 + (Theta_hat-Theta_struc)**2 ' \
-        #              '+ (WT_hat-WT_struc)**2 + sum((z-z_hat_aero)**2) + (fin_hat-fin_aero)**2 + (D_hat-D_aero)**2 ' \
-        #              '+ (L_hat-L_aero)**2 + (z[1]-z_hat_prop[1])**2 + (z[2]-z_hat_prop[2])**2 + (ESF_hat-ESF_prop)**2' \
-        #              ' + (WE_hat-WE_prop)**2 + (SFC_hat-SFC_prop)**2)**0.5'
-        # self.add_subsystem('J', ExecComp(J_tot_expr, z=np.ones(6), z_hat_struc=np.ones(6),
-        #                                  z_hat_aero=np.ones(6), z_hat_prop=np.ones(6)))
-        self.add_subsystem('J', Jcalc(input_var_sets = [['z', 'z_hat_struc', np.ones(6), [0, 3, 4, 5]],
-                                                        ['WF_hat', 'WF_struc', 1.],
-                                                        ['Theta_hat', 'Theta_struc', 1.],
-                                                        ['WT_hat', 'WT_struc', 1.],
-                                                        ['z', 'z_hat_aero', np.ones(6)],
-                                                        ['fin_hat', 'fin_aero', 1.],
-                                                        ['D_hat', 'D_aero', 1.],
-                                                        ['L_hat', 'L_aero', 1.],
-                                                        ['z', 'z_hat_prop', np.ones(6), [1, 2]],
-                                                        ['ESF_hat', 'ESF_prop', 1.],
-                                                        ['WE_hat', 'WE_prop', 1.],
-                                                        ['SFC_hat', 'SFC_prop', 1.]],
-                                      take_square_root=True))
+        self.add_subsystem('performance', Performance(self.options['scalers']))
+        J_tot_expr = 'J = ((z[0]-z_hat_struc[0])**2 + (z[3]-z_hat_struc[3])**2 + (z[4]-z_hat_struc[4])**2 ' \
+                     '+ (z[5]-z_hat_struc[5])**2 + (WF_hat-WF_struc)**2 + (Theta_hat-Theta_struc)**2 ' \
+                     '+ (WT_hat-WT_struc)**2 + sum((z-z_hat_aero)**2) + (fin_hat-fin_aero)**2 + (D_hat-D_aero)**2 ' \
+                     '+ (WT_hat-L_aero)**2 + (z[1]-z_hat_prop[1])**2 + (z[2]-z_hat_prop[2])**2 + (ESF_hat-ESF_prop)**2' \
+                     ' + (WE_hat-WE_prop)**2 + (SFC_hat-SFC_prop)**2)**.5'
+        self.add_subsystem('J', ExecComp(J_tot_expr, z=np.ones(6), z_hat_struc=np.ones(6),
+                                         z_hat_aero=np.ones(6), z_hat_prop=np.ones(6)))
 
         # Connect variables
         self.connect('z', ['subopt_struc.z', 'subopt_aero.z', 'subopt_prop.z', 'performance.z', 'J.z'])
-        self.connect('L_hat', ['subopt_struc.L_hat', 'subopt_aero.L_hat', 'J.L_hat'])
         self.connect('D_hat', ['subopt_aero.D_hat', 'subopt_prop.D_hat', 'J.D_hat'])
         self.connect('WE_hat', ['subopt_struc.WE_hat', 'subopt_prop.WE_hat', 'J.WE_hat'])
         self.connect('WT_hat', ['performance.WT', 'subopt_struc.WT_hat', 'subopt_aero.WT_hat', 'J.WT_hat'])
@@ -569,17 +493,24 @@ class SsbjCO(Group):
 
 if __name__ == '__main__':
 
+    # Initialize problem
     scalers = init_ssbj_mda()
     prob = Problem()
 
-    prob.model = model = SsbjCO(scalers=scalers)
+    subopt_driver = ScipyOptimizeDriver()
 
-    prob.driver = pyOptSparseDriver()
-    prob.driver.options['optimizer'] = 'SLSQP'
-    # prob.driver.opt_settings['Major optimality tolerance'] = 1e-1
-    # prob.driver.opt_settings['Major feasibility tolerance'] = 1e-3
-    #prob.driver.options['debug_print'] = ['desvars', 'ln_cons', 'nl_cons', 'objs']
-    prob.driver.opt_settings['ACC'] = 1e-4
+    prob.model = model = SsbjCO(scalers=scalers, subopt_driver=subopt_driver)
+
+    if isinstance(subopt_driver, ScipyOptimizeDriver):
+        prob.driver = pyOptSparseDriver()
+        prob.driver.options['optimizer'] = 'SLSQP'
+        prob.driver.opt_settings['ACC'] = 1e-4
+    elif isinstance(subopt_driver, pyOptSparseDriver):
+        prob.driver = ScipyOptimizeDriver()
+        prob.driver.options['optimizer'] = 'SLSQP'
+        prob.driver.options['maxiter'] = 100
+        prob.driver.options['tol'] = 1e-4
+    prob.driver.options['debug_print'] = ['desvars', 'ln_cons', 'nl_cons', 'objs']
     prob.set_solver_print(level=2)
 
     # Set design variables
@@ -587,15 +518,18 @@ if __name__ == '__main__':
                               upper=np.array([1.8, 1.333, 1.125, 1.45, 1.27, 1.5]))
 
     # Add some logical, though conservative, bounds to the coupling variables that have become design variables
-    prob.model.add_design_var('L_hat', lower=0.40, upper=1.58)                         # 20000-80000 (w.r.t. 50606.68)
-    prob.model.add_design_var('D_hat', lower=0.082, upper=3.28)                        # 1000-40000 (w.r.t 12193.80)
-    prob.model.add_design_var('WE_hat', lower=0.0, upper=3.148)                        # 0-20000 (w.r.t 6354.07)
-    prob.model.add_design_var('WT_hat', lower=0.40, upper=1.58)                        # 20000-80000 (w.r.t 50606.68)
-    prob.model.add_design_var('Theta_hat', lower=0.935280535448, upper=1.01322058007)  # 0.96-1.04 (w.r.t 1.02643)
-    prob.model.add_design_var('WF_hat', lower=0.0, upper=5.47480025858)                # 0-40000 (w.r.t 7306.20262124)
-    prob.model.add_design_var('ESF_hat', lower=0.994476478742, upper=2.98342943623)    # 0.5-1.5 (w.r.t 0.5027771)
-    prob.model.add_design_var('fin_hat', lower=0.48190485642, upper=3.85523885136)     # 2-16 (w.r.t 4.15019681449)
-    prob.model.add_design_var('SFC_hat', lower=0.451432768154, upper=1.35429830446)    # 0.5-1.5 (w.r.t 1.10758464)
+    des_vars_def = {'D_hat':[1000, 15000],
+                    'WE_hat': [0, 20000],
+                    'WT_hat': [20000, 60000],
+                    'Theta_hat': [0.96, 1.04],
+                    'WF_hat': [5000, 25000],
+                    'ESF_hat': [0.5, 1.5],
+                    'fin_hat': [2, 12],
+                    'SFC_hat': [0.5, 1.5]}
+
+    for key, item in des_vars_def.items():
+        prob.model.add_design_var(key, lower=item[0]/scalers[key.replace('_hat', '')],
+                                  upper=item[1]/scalers[key.replace('_hat', '')])
 
     # Set objective
     prob.model.add_objective('performance.R', scaler=-1.)
@@ -603,25 +537,49 @@ if __name__ == '__main__':
     # Set constraints
     prob.model.add_constraint('J.J', equals=0.0)
 
+    # Add recorder
+    recorder = SqliteRecorder(os.path.join('files', 'ssbj_cr_{}_co_system.sql'.format(cr_files_key_word)))
+    prob.driver.add_recorder(recorder)
+    prob.driver.recording_options['includes'] = []
+    prob.driver.recording_options['record_objectives'] = True
+    prob.driver.recording_options['record_constraints'] = True
+    prob.driver.recording_options['record_desvars'] = True
+    prob.driver.recording_options['record_metadata'] = True
+
     # Setup
-    prob.setup(mode='fwd')
+    prob.setup(mode='rev')
 
-    # view_model(prob, outfile='co_ssbj.html')
+    # View model
+    view_model(prob, outfile=os.path.join('files', 'co_sys_ssbj.html'), show_browser=False)
 
-    #prob.check_partials(compact_print=True)
+    # Check partials
+    # prob.check_partials(compact_print=True)
 
+    # Run problem (either once (run_model) or full optimization (run_driver))
+    # prob.run_model()
     prob.run_driver()
 
+    # Report result in the log
     print('Outcome of analysis:')
-    print('objective=', prob['performance.R'] * scalers['R'])
+    print('\nDesign variables:')
     print('Z_opt=', prob['z'] * scalers['z'])
-    print('X_str_opt=', prob.model.subopt_struc.prob['x_str'] * scalers['x_str'])
+    print('Z_opt_c=', [[key, float(prob[key] * scalers[key.replace('_hat', '')])] for key in des_vars_def.keys()])
+    print('X_str_opt=', prob.model.subopt_struc.prob['x_str'])
     print('X_aer_opt=', prob.model.subopt_aero.prob['x_aer'])
-    print('X_pro_opt=', prob.model.subopt_prop.prob['x_pro'] * scalers['x_pro'])
-    print('R_opt=', prob['performance.R'] * scalers['R'])
+    print('X_pro_opt=', prob.model.subopt_prop.prob['x_pro'])
 
-    # prob = Problem()
-    #
-    # prob.model = model = Group()
-    #
-    # prob.model.add_subsystem('inputs', IndepVarComp)
+    print('\nObjectives')
+    print('R_opt=', prob['performance.R'] * scalers['R'])
+    print('J_opt_str=', prob.model.subopt_struc.prob['J.J'])
+    print('J_opt_aer=', prob.model.subopt_aero.prob['J.J'])
+    print('J_opt_pro=', prob.model.subopt_prop.prob['J.J'])
+
+    print('\nConstraints')
+    print('J_sys=', prob['J.J'])
+    for i in range(1, 6):
+        print('con_sigma{}='.format(i), prob.model.subopt_struc.prob['con_sigma{}'.format(i)])
+    print('con_theta=', prob.model.subopt_struc.prob['con_theta'])
+    print('con_dpdx=', prob.model.subopt_aero.prob['constraints.con_dpdx'])
+    print('con_dt=', prob.model.subopt_prop.prob['constraints.con_dt'])
+    print('con_esf=', prob.model.subopt_prop.prob['constraints.con_esf'])
+    print('con_temp=', prob.model.subopt_prop.prob['constraints.con_temp'])
