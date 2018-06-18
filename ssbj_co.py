@@ -19,7 +19,7 @@ import numpy as np
 
 
 # Set keyword for case reader files (to be used in postprocessing script)
-cr_files_key_word = 'results2'  # or use: str(datetime.datetime.now())
+cr_files_key_word = 'results'  # or use: str(datetime.datetime.now())
 
 
 class SubOpt(ExplicitComponent):
