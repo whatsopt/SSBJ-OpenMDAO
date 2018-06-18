@@ -75,44 +75,26 @@ plotly.offline.plot(fig_des_c, filename=os.path.join('files', 'ssbj_co_top_des_v
 
 
 # Plot sub-level optimization results (this might take a while)
-cr_struc = CaseReader(os.path.join(cr_file_folder_name, 'ssbj_cr_{}_subsystems.sql'.format(cr_file_key_word)))
+# Structural analysis
+cr_struc = CaseReader(os.path.join(cr_file_folder_name, 'ssbj_cr_{}_subsystem_str.sql'.format(cr_file_key_word)))
 
 case_keys = cr_struc.driver_cases.list_cases()
 objectives_str = []
 constraints_str = []
 des_vars_str = []
-objectives_aer = []
-constraints_aer = []
-des_vars_aer = []
-objectives_prop = []
-constraints_prop = []
-des_vars_prop = []
 for i, case_key in enumerate(case_keys):
     #print('Case:', case_key)
     case = cr_struc.driver_cases.get_case(case_key)
-    if 'subopt_struc' in case_key:
-        des_vars_str.append([float(case.outputs['x_str'][0]),
-                        float(case.outputs['x_str'][1])])
-        objectives_str.append(float(case.outputs['J.J']))
-        constraints_str.append([float(case.outputs['con_sigma1']),
-                            float(case.outputs['con_sigma2']),
-                            float(case.outputs['con_sigma3']),
-                            float(case.outputs['con_sigma4']),
-                            float(case.outputs['con_sigma5']),
-                            float(case.outputs['con_theta'])])
-    elif 'subopt_aero' in case_key:
-        des_vars_aer.append([float(case.outputs['x_aer'][0])])
-        objectives_aer.append(float(case.outputs['J.J']))
-        constraints_aer.append([float(case.outputs['constraints.con_dpdx'])])
-    elif 'subopt_prop' in case_key:
-        des_vars_prop.append([float(case.outputs['x_pro'][0])])
-        objectives_prop.append(float(case.outputs['J.J']))
-        constraints_prop.append([float(case.outputs['constraints.con_esf']),
-                                 float(case.outputs['constraints.con_temp']),
-                                 float(case.outputs['constraints.con_dt'])])
+    des_vars_str.append([float(case.outputs['x_str'][0]),
+                    float(case.outputs['x_str'][1])])
+    objectives_str.append(float(case.outputs['J.J']))
+    constraints_str.append([float(case.outputs['con_sigma1']),
+                        float(case.outputs['con_sigma2']),
+                        float(case.outputs['con_sigma3']),
+                        float(case.outputs['con_sigma4']),
+                        float(case.outputs['con_sigma5']),
+                        float(case.outputs['con_theta'])])
 iters_str = range(0, len(des_vars_str))
-iters_aer = range(0, len(des_vars_aer))
-iters_prop = range(0, len(des_vars_prop))
 
 # Plot objective
 trace_obj = go.Scatter(x=iters_str,
@@ -145,6 +127,20 @@ for i in range(0, len(des_vars_str[0])):
 plotly.offline.plot(data, filename=os.path.join('files', 'ssbj_co_sub_str_des_vars.html'))
 
 
+# Aerodynamic analysis
+cr_struc = CaseReader(os.path.join(cr_file_folder_name, 'ssbj_cr_{}_subsystem_aer.sql'.format(cr_file_key_word)))
+
+case_keys = cr_struc.driver_cases.list_cases()
+objectives_aer = []
+constraints_aer = []
+des_vars_aer = []
+for i, case_key in enumerate(case_keys):
+    #print('Case:', case_key)
+    case = cr_struc.driver_cases.get_case(case_key)
+    des_vars_aer.append([float(case.outputs['x_aer'][0])])
+    objectives_aer.append(float(case.outputs['J.J']))
+    constraints_aer.append([float(case.outputs['constraints.con_dpdx'])])
+iters_aer = range(0, len(des_vars_aer))
 
 # Plot objective
 trace_obj = go.Scatter(x=iters_aer,
@@ -175,6 +171,23 @@ for i in range(0, len(des_vars_aer[0])):
                        name='{}'.format(legend_entries[i]))
     data.append(trace)
 plotly.offline.plot(data, filename=os.path.join('files', 'ssbj_co_sub_aer_des_vars.html'))
+
+# Propulsion analysis
+cr_struc = CaseReader(os.path.join(cr_file_folder_name, 'ssbj_cr_{}_subsystem_pro.sql'.format(cr_file_key_word)))
+
+case_keys = cr_struc.driver_cases.list_cases()
+objectives_prop = []
+constraints_prop = []
+des_vars_prop = []
+for i, case_key in enumerate(case_keys):
+    #print('Case:', case_key)
+    case = cr_struc.driver_cases.get_case(case_key)
+    des_vars_prop.append([float(case.outputs['x_pro'][0])])
+    objectives_prop.append(float(case.outputs['J.J']))
+    constraints_prop.append([float(case.outputs['constraints.con_esf']),
+                             float(case.outputs['constraints.con_temp']),
+                             float(case.outputs['constraints.con_dt'])])
+iters_prop = range(0, len(des_vars_prop))
 
 # Plot objective
 trace_obj = go.Scatter(x=iters_prop,
