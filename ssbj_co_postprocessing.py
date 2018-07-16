@@ -3,7 +3,7 @@ SSBJ test case - http://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/1998023465
 Python implementation and OpenMDAO integration developed by
 Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 Collaborative Optimization (CO) strategy optimization and postprocessing scripts
-developed by Imco van Gent of TU Delft, Faculty of Aerospace Engineering
+developed by Imco van Gent of TU Delft, Faculty of Aerospace Engineering.
 """
 import os
 
