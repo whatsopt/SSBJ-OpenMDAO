@@ -14,7 +14,7 @@ import plotly
 import plotly.graph_objs as go
 
 cr_file_folder_name = 'files'
-cr_file_key_word = 'bliss_run4'
+cr_file_key_word = 'bliss_run'
 
 # Open des_vars
 des_vars_list = pickle.load(open(os.path.join(cr_file_folder_name,

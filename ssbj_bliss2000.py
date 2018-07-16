@@ -24,14 +24,14 @@ from ssbj_mda import init_ssbj_mda
 
 # Main execution settings
 # Save settings for output files
-cr_files_keyword = 'bliss_run5'  # keyword for files to be saved
+cr_files_keyword = 'bliss_run'  # keyword for files to be saved
 cr_files_folder = 'files'        # name of folder to save execution files
 
 # BLISS algorithm settings
-F_SAMPLES = 13                   # LHS sample factor (N_SAMPLES = F_SAMPLES*number_of_variables)
+F_SAMPLES = 10                   # LHS sample factor (N_SAMPLES = F_SAMPLES*number_of_variables)
 MAX_LOOPS = 30                   # maximum number of BLISS iteration loops
-CONV_ABS_TOL = 1e-6              # Absolute convergence tolerance for BLISS iterations
-CONV_REL_TOL = 1e-6              # Relative convergence tolerance for BLISS iterations
+CONV_ABS_TOL = 1e-4              # Absolute convergence tolerance for BLISS iterations
+CONV_REL_TOL = 1e-4              # Relative convergence tolerance for BLISS iterations
 
 # BLISS design variables interval adjustment settings
 F_INT_RED = 0.1                  # interval_reduction: percentage of interval reduction

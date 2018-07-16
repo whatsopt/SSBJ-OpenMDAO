@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     # Pick up values from recorder
     cr_file_folder_name = 'files'
-    cr_file_key_word = 'bliss_run0'
+    cr_file_key_word = 'bliss_run'
     n_loop = 23
     des_vars_list = pickle.load(open(os.path.join(cr_file_folder_name,
                                                   'ssbj_des_vars_{}_system_loops.p'.format(cr_file_key_word)), 'rb'))
