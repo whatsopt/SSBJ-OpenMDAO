@@ -11,10 +11,10 @@ from openmdao.api import ExecComp, IndepVarComp
 from openmdao.api import Group, Problem
 from openmdao.api import NonlinearBlockGS, ScipyKrylov
 
-from .disciplines.aerodynamics import Aerodynamics
-from .disciplines.performance import Performance
-from .disciplines.propulsion import Propulsion
-from .disciplines.structure import Structure
+from disciplines.aerodynamics import Aerodynamics
+from disciplines.performance import Performance
+from disciplines.propulsion import Propulsion
+from disciplines.structure import Structure
 # pylint: disable=C0103
 
 class SSBJ_MDA(Group):
