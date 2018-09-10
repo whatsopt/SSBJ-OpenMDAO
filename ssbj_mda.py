@@ -4,16 +4,17 @@ Python implementation and OpenMDAO integration developed by
 Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 """
 from __future__ import print_function
+from six import iterkeys
 import numpy as np
 
 from openmdao.api import ExecComp, IndepVarComp
 from openmdao.api import Group, Problem
 from openmdao.api import NonlinearBlockGS, ScipyKrylov
 
-from disciplines.aerodynamics import Aerodynamics
-from disciplines.performance import Performance
-from disciplines.propulsion import Propulsion
-from disciplines.structure import Structure
+from .disciplines.aerodynamics import Aerodynamics
+from .disciplines.performance import Performance
+from .disciplines.propulsion import Propulsion
+from .disciplines.structure import Structure
 # pylint: disable=C0103
 
 class SSBJ_MDA(Group):
@@ -136,7 +137,7 @@ def init_ssbj_mda():
     prob.run_driver()
 
     #Uptade the scalers dictionary
-    for key in scalers.iterkeys():
+    for key in iterkeys(scalers):
         if key not in ['z', 'x_str', 'x_pro']:
             scalers[key] = prob[key]
 

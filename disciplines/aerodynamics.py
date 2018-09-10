@@ -7,7 +7,7 @@ from __future__ import print_function
 import numpy as np
 
 from openmdao.api import ExplicitComponent
-from common import PolynomialFunction, CDMIN
+from .common import PolynomialFunction, CDMIN
 # pylint: disable=C0103
 
 def aerodynamics(pf, x_aer, Z, WT, ESF, Theta):
