@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pylab as plt
 
 from openmdao.api import Problem
-from openmdao.api import SqliteRecorder, WebRecorder, ScipyOptimizeDriver, pyOptSparseDriver
+from openmdao.api import SqliteRecorder, ScipyOptimizeDriver, pyOptSparseDriver
 
 from ssbj_idf_mda import SSBJ_IDF_MDA
 from ssbj_mda import init_ssbj_mda
