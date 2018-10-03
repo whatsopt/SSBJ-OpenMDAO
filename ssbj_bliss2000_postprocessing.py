@@ -21,7 +21,7 @@ des_vars_list = pickle.load(open(os.path.join(cr_file_folder_name,
                                               'ssbj_des_vars_{}_system_loops.p'.format(cr_file_key_word)), 'rb'))
 
 # Get the number of BLISS loops
-n_loops = len(des_vars_list) - 1 if cr_file_key_word == 'bliss_removews3' else len(des_vars_list)
+n_loops = len(des_vars_list)
 
 # Plot top-level optimization results
 objectives = []

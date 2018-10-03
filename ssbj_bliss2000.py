@@ -19,31 +19,34 @@ from disciplines.aerodynamics import Aerodynamics
 from disciplines.performance import Performance
 from disciplines.propulsion import Propulsion
 from disciplines.structure import Structure
+from disciplines.dpdxcalc import DpdxCalc
 
 from ssbj_mda import init_ssbj_mda
 
 # Main execution settings
 # Save settings for output files
-cr_files_keyword = 'bliss_run'  # keyword for files to be saved
+cr_files_keyword = 'bliss_run'   # keyword for files to be saved
 cr_files_folder = 'files'        # name of folder to save execution files
 
 # BLISS algorithm settings
-F_SAMPLES = 10                   # LHS sample factor (N_SAMPLES = F_SAMPLES*number_of_variables)
+F_SAMPLES = 15                   # LHS sample factor (N_SAMPLES = F_SAMPLES*number_of_variables)
 MAX_LOOPS = 30                   # maximum number of BLISS iteration loops
-CONV_ABS_TOL = 1e-4              # Absolute convergence tolerance for BLISS iterations
-CONV_REL_TOL = 1e-4              # Relative convergence tolerance for BLISS iterations
+CONV_ABS_TOL = 1e-3              # Absolute convergence tolerance for BLISS iterations
+CONV_REL_TOL = 1e-3              # Relative convergence tolerance for BLISS iterations
+LHS_SEED = 4                     # Seed of the Latin Hypercube Sampling algorithm
 
 # BLISS design variables interval adjustment settings
 F_INT_RED = 0.1                  # interval_reduction: percentage of interval reduction
-F_K_RED = 2.                     # K_bound_reduction: K-factor reduction
-F_INT_INC = 0.5                  # interval increase: percentage of interval increase if bound is hit
-F_INT_INC_ABS = 0.2              # absolute interval increase: minimum increase if percentual increase is too low
+F_K_RED = 3.0                    # K_bound_reduction: K-factor reduction
+F_INT_INC = 0.25                 # interval increase: percentage of interval increase if bound is hit
+F_INT_INC_ABS = 0.1              # absolute interval increase: minimum increase if percentual increase is too low
+F_INT_RANGE = 1.e-3              # minimal range of the design variable interval
 
 # Restart settings (last three are only needed when START_TYPE == 'restart')
 START_TYPE = 'fresh'             # start based on previous (restart) or afresh (fresh)
 RESTART_FOLDER = 'files'         # folder name to look for previous results
-RESTART_KEYWORD = 'bliss_run0'   # keyword of file names for previous results (see cr_files_keyword above)
-RESTART_FROM_LOOP = 8            # Loop number to restart the run from
+RESTART_KEYWORD = 'bliss_run'    # keyword of file names for previous results (see cr_files_keyword above)
+RESTART_FROM_LOOP = 7            # Loop number to restart the run from
 
 
 class SubOpt(ExplicitComponent):
@@ -107,7 +110,7 @@ class SubOpt(ExplicitComponent):
             p.model.add_subsystem('structures', Structure(self.options['scalers']))
 
             # Local constraint functions
-            cstrs = []  # N.B. The Theta constraint is removed as Theta is already bound at the top level.
+            cstrs = ['con_theta = Theta*' + str(self.options['scalers']['Theta']) + '-1.04']
             for i in range(5):
                 cstrs.append('con_sigma' + str(i + 1) + ' = sigma[' + str(i) + ']*' +
                              str(self.options['scalers']['sigma'][i]) + '-1.09')
@@ -130,6 +133,7 @@ class SubOpt(ExplicitComponent):
             p.model.connect('WE_hat', 'structures.WE')
 
             # Constraints inputs
+            p.model.connect('structures.Theta', 'constraints.Theta')
             p.model.connect('structures.sigma', 'constraints.sigma')
 
             # Objective
@@ -166,6 +170,7 @@ class SubOpt(ExplicitComponent):
             p.model.add_objective('WCF.WCF')
 
             # Add constraints
+            p.model.add_constraint('con_theta', upper=0.0, lower=-0.04)
             p.model.add_constraint('con_sigma1', upper=0.0)
             p.model.add_constraint('con_sigma2', upper=0.0)
             p.model.add_constraint('con_sigma3', upper=0.0)
@@ -234,9 +239,9 @@ class SubOpt(ExplicitComponent):
             # Disciplinary analysis
             p.model.add_subsystem('aerodynamics', Aerodynamics(self.options['scalers']))
 
-            # Local constraint functions
-            p.model.add_subsystem('constraints',
-                                  ExecComp('con_dpdx = dpdx*' + str(self.options['scalers']['dpdx']) + '-1.04'))
+            # Local constraint functions -> N.B. The dpdx constraint is moved to the system-level
+            #p.model.add_subsystem('constraints',
+            #                      ExecComp('con_dpdx = dpdx*' + str(self.options['scalers']['dpdx']) + '-1.04'))
 
             # Local objective
             p.model.add_subsystem('WCF', ExecComp('WCF = w_D*D + w_L*L'))
@@ -257,8 +262,8 @@ class SubOpt(ExplicitComponent):
             p.model.connect('WT_hat', 'aerodynamics.WT')
             p.model.connect('Theta_hat', 'aerodynamics.Theta')
 
-            # Constraints inputs
-            p.model.connect('aerodynamics.dpdx', 'constraints.dpdx')
+            # Constraints inputs -> N.B. The dpdx constraint is moved to the system-level
+            # p.model.connect('aerodynamics.dpdx', 'constraints.dpdx')
 
             # Objective
             p.model.connect('w_D', 'WCF.w_D')
@@ -294,8 +299,8 @@ class SubOpt(ExplicitComponent):
             # Add objective
             p.model.add_objective('WCF.WCF')
 
-            # Add constraints
-            p.model.add_constraint('constraints.con_dpdx', upper=0.0)
+            # Add constraints -> N.B. The dpdx constraint is moved to the system-level
+            # p.model.add_constraint('constraints.con_dpdx', upper=0.0)
 
             # Final setup
             p.setup()
@@ -553,6 +558,12 @@ class SsbjBLISS2000(Group):
                          'gc_ESF = ESF_opt - ESF_sm',
                          'gc_WT_L = WT_opt - L_opt']
         self.add_subsystem('consistency_constraints', ExecComp(cons_cons_eqs))
+
+        # dpdx constraint at system level
+        self.add_subsystem('dpdxcalc', DpdxCalc(self.options['scalers']))
+        self.add_subsystem('constraints', ExecComp('con_dpdx = dpdx*' + str(self.options['scalers']['dpdx']) + '-1.04'))
+        self.connect('z_sh', 'dpdxcalc.z0', src_indices=[0])
+        self.connect('dpdxcalc.dpdx', 'constraints.dpdx')
 
         # Connect variables correctly
         # between surrogate models and performance block
@@ -824,7 +835,7 @@ def get_optimized_subsystem(discipline, des_vars, scalers, opt_driver):
         qoi_keys.append('{}'.format(qoi))
 
     # Define DOE driver + sampler
-    d = p.driver = DOEDriver(LatinHypercubeGenerator(samples=F_SAMPLES*n_x, criterion='maximin'))
+    d = p.driver = DOEDriver(LatinHypercubeGenerator(samples=F_SAMPLES*n_x, criterion='maximin', seed=LHS_SEED))
 
     # Set-up and run driver
     d.add_recorder(SqliteRecorder(os.path.join(cr_files_folder, 'doe_subsystem_{}.sql'.format(discipline))))
@@ -910,6 +921,7 @@ def run_system_optimization(des_vars, subsystems, scalers, loop_number):
     model.add_constraint('consistency_constraints.gc_Theta', equals=0.0)
     model.add_constraint('consistency_constraints.gc_ESF', equals=0.0)
     model.add_constraint('consistency_constraints.gc_WT_L', equals=0.0)
+    model.add_constraint('constraints.con_dpdx', upper=0.0)
 
     # Add recorder
     recorder = SqliteRecorder(os.path.join(cr_files_folder, 'ssbj_cr_{}_system_loop{:02d}.sql'.format(cr_files_keyword, loop_number)))
@@ -957,12 +969,13 @@ def run_system_optimization(des_vars, subsystems, scalers, loop_number):
     print('gc_Theta=', prob['consistency_constraints.gc_Theta'])
     print('gc_ESF=', prob['consistency_constraints.gc_ESF'])
     print('gc_WT_L=', prob['consistency_constraints.gc_WT_L'])
+    print('c_dpdx=', prob['constraints.con_dpdx'])
     print('- - - - - - - - - - - - - - - - - - - - - - - - - -')
 
     return prob, prob.driver.fail
 
 
-def get_new_bounds(des_vars, loop_number, z_opt, f_int_red, f_k_red, f_int_inc, f_int_inc_abs, optimization_failed):
+def get_new_bounds(des_vars, loop_number, z_opt, f_k_red, f_int_inc, f_int_inc_abs, f_int_range, optimization_failed):
     """Method that determines new bounds for the design variables for the next BLISS loop. Bounds are initially reduced,
     but will be increased if bounds are hit or if the system-level optimization failed.
 
@@ -972,14 +985,14 @@ def get_new_bounds(des_vars, loop_number, z_opt, f_int_red, f_k_red, f_int_inc, 
     :type loop_number: int
     :param z_opt: optimal design vectors
     :type z_opt: dict
-    :param f_int_red: interval_reduction: percentage of interval reduction
-    :type f_int_red: float
     :param f_k_red: K-factor reduction
     :type f_k_red: float
     :param f_int_inc: percentage of interval increase if bound is hit
     :type f_int_inc: float
     :param f_int_inc_abs: absolute interval increase: minimum increase if percentual increase is too low
     :type f_int_inc_abs: float
+    :param f_int_range: minimum width of the design variable interval
+    :type f_int_range: float
     :param optimization_failed: indication whether optimization was successful
     :type optimization_failed: bool
     :return: enriched design variables object with new bounds
@@ -1001,34 +1014,23 @@ def get_new_bounds(des_vars, loop_number, z_opt, f_int_red, f_k_red, f_int_inc, 
             val_max = des_var['max'][idx]
             val_interval = val_upp - val_low
 
-            # If reduction_type is interval-based -> reduce accordingly
             if not optimization_failed:
-                if var_name in ['z_sh']:
-                    if idx != 0:  # if not t/c
-                        val_low_new = val_opt - val_interval * (1 - f_int_red) / 2
-                        val_upp_new = val_opt + val_interval * (1 - f_int_red) / 2
-                    else:  # if t/c
-                        val_low_new = val_opt - val_interval * (1 - 2*f_int_red) / 2
-                        val_upp_new = val_opt + val_interval * (1 - 2*f_int_red) / 2
                 # If reduction_type is K-factor-based -> reduce accordingly
-                elif var_name in ['z_c', 'z_w']:
-                    adjust = abs((val_upp + val_low) / 2 - val_opt) / ((val_upp + val_low) / 2 - val_low)
-                    reduce_val = adjust + (1 - adjust) * f_k_red
-                    val_low_new = val_opt - ((val_interval) / (reduce_val)) / 2
-                    val_upp_new = val_opt + ((val_interval) / (reduce_val)) / 2
-                else:
-                    raise AssertionError('var_name "{}" is unknown.'.format(var_name))
+                adjust = abs((val_upp + val_low) / 2 - val_opt) / ((val_upp + val_low) / 2 - val_low)
+                reduce_val = adjust + (1 - adjust) * f_k_red
+                val_low_new = val_opt - ((val_interval) / (reduce_val)) / 2
+                val_upp_new = val_opt + ((val_interval) / (reduce_val)) / 2
 
             # If bound has been hit (twice ==> increase)
             if loop_number > 0 or optimization_failed:
                 lower_bound_hit = False
                 upper_bound_hit = False
-                if (val_opt - 1e-2 <= val_low and des_var['nominal'][idx] - 1e-2 <= des_var['lower'][idx]) \
-                        or optimization_failed:  # lower bound hit twice or optimization failed
+                if (val_opt - 1e-2 <= val_low and des_var['nominal'][idx] - 1e-2 <= des_vars[loop_number-1][var_name]
+                ['lower'][idx])  or optimization_failed:  # lower bound hit twice or optimization failed
                     lower_bound_hit = True
                     dist_lb = abs(val_opt-val_low)
-                if (val_opt + 1e-2 >= val_upp and des_var['nominal'][idx] + 1e-2 >= des_var['upper'][idx]) \
-                        or optimization_failed:  # upper bound hit twice or optimization failed
+                if (val_opt + 1e-2 >= val_upp and des_var['nominal'][idx] + 1e-2 >= des_vars[loop_number-1][var_name]
+                ['upper'][idx]) or optimization_failed:  # upper bound hit twice or optimization failed
                     upper_bound_hit = True
                     dist_ub = abs(val_opt-val_upp)
                 if lower_bound_hit and upper_bound_hit:
@@ -1057,10 +1059,31 @@ def get_new_bounds(des_vars, loop_number, z_opt, f_int_red, f_k_red, f_int_inc, 
                     else:
                         val_upp_new = val_upp + f_int_inc_abs
 
-            # Check if bounds are not reversed -> otherwise set equal with small tolerance
+            # Check if bounds are not reversed -> otherwise set equal with minimal range
             if val_low_new > val_upp_new:
-                val_low_new = val_opt - 1e-6
-                val_upp_new = val_opt + 1e-6
+                val_low_new = val_opt - .5*f_int_range
+                val_upp_new = val_opt + .5*f_int_range
+
+            # If interval range is smaller than the minimum range -> adjust accordingly
+            if abs(val_upp_new - val_low_new) < f_int_range:
+                # First consider upper bound
+                dist_ub = abs(val_opt-val_max)
+                if dist_ub < .5*f_int_range:
+                    val_upp_new = val_max
+                    rest_range_ub = .5*f_int_range-dist_ub
+                else:
+                    val_upp_new = val_opt + .5*f_int_range
+                    rest_range_ub = 0.
+                # Then adjust lower bound accordingly
+                dist_lb = abs(val_opt-val_min)
+                if dist_lb < .5*f_int_range:
+                    val_low_new = val_min
+                    rest_range_lb = .5*f_int_range-dist_lb
+                else:
+                    val_low_new = val_opt - .5*f_int_range-rest_range_ub
+                    rest_range_lb = 0.
+                # Add lower bound rest range to the upper bound
+                val_upp_new += rest_range_lb
 
             # If interval is outside maximum bounds -> set equal to appropriate extremum
             if val_low_new < val_min:
@@ -1139,11 +1162,11 @@ if __name__ == '__main__':
             subsys_dis = subsystems[discipline]
             # Perform DOE for optimized subsystems
             print('\nPerform subsystem optimizations for {} discipline.'.format(discipline))
-            subsys_dis['samples'][l], subsys_dis['results'][l] =  get_optimized_subsystem(discipline, z, scalers,
-                                                                                          ScipyOptimizeDriver())
+            subsys_dis['samples'][l], subsys_dis['results'][l] = get_optimized_subsystem(discipline, z, scalers,
+                                                                                         ScipyOptimizeDriver())
 
             # Create surrogate model
-            subsys_dis['surrogate_model'][l] = sm = MetaModelUnStructuredComp(default_surrogate=FloatKrigingSurrogate())
+            subsys_dis['surrogate_model'][l] = sm = MetaModelUnStructuredComp(default_surrogate=ResponseSurface())
             sm.add_input('x', val=np.zeros(len(subsys_dis['samples'][l][0])), training_data=subsys_dis['samples'][l])
             sm.add_output('y', val=np.zeros(len(subsys_dis['results'][l][0])), training_data=subsys_dis['results'][l])
 
@@ -1181,8 +1204,8 @@ if __name__ == '__main__':
             z_opt = {'z_sh': sys_problems[l]['z_sh'],
                      'z_c': sys_problems[l]['z_c'],
                      'z_w': sys_problems[l]['z_w']}
-            des_vars[l + 1] = get_new_bounds(des_vars, l, z_opt,
-                                             F_INT_RED, F_K_RED, F_INT_INC, F_INT_INC_ABS, fail_bools[l])
+            des_vars[l + 1] = get_new_bounds(des_vars, l, z_opt, F_K_RED, F_INT_INC, F_INT_INC_ABS, F_INT_RANGE,
+                                             fail_bools[l])
 
         # Save the data as pickled objects (overwrite every time in case of intermediate failure)
         pickle_object(des_vars, 'ssbj_des_vars_{}_system_loops.p'.format(cr_files_keyword), dst=cr_files_folder)
