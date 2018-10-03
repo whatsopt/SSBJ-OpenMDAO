@@ -6,7 +6,7 @@ Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 from __future__ import print_function
 import numpy as np
 from openmdao.api import ExplicitComponent
-from common import PolynomialFunction, WBE
+from .common import PolynomialFunction, WBE
 # pylint: disable=C0103
 
 def propulsion(pf, x_pro, Z, D):

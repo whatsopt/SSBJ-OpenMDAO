@@ -4,6 +4,7 @@ Python implementation and OpenMDAO integration developed by
 Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 """
 from __future__ import print_function
+from six import iterkeys
 import numpy as np
 
 from openmdao.api import ExecComp, IndepVarComp
@@ -135,11 +136,10 @@ def init_ssbj_mda():
 
     prob.run_driver()
 
-    #Uptade the scalers dictionary
+    #Update the scalers dictionary
     for key in scalers.iterkeys():
         if key not in ['z', 'x_str', 'x_aer', 'x_pro']:
             scalers[key] = prob[key]
-
     return scalers
 
 

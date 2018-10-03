@@ -6,7 +6,7 @@ Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 from __future__ import print_function
 import numpy as np
 from openmdao.api import ExplicitComponent
-from common import PolynomialFunction, WFO, WO, NZ
+from .common import PolynomialFunction, WFO, WO, NZ
 # pylint: disable=C0103
 
 def structure(pf, x_str, Z, L, WE):
@@ -70,6 +70,7 @@ class Structure(ExplicitComponent):
         outputs['Theta'] = Theta/self.scalers['Theta']
         outputs['WF'] = WF/self.scalers['WF']
         outputs['WT'] = WT/self.scalers['L']
+        outputs['sigma'] = np.zeros(5)
         for i in range(5):
             outputs['sigma'][i] = sigma[i]/self.scalers['sigma'][i]
 
