@@ -15,7 +15,6 @@ from disciplines.aerodynamics import Aerodynamics
 from disciplines.performance import Performance
 from disciplines.propulsion import Propulsion
 from disciplines.structure import Structure
-# pylint: disable=C0103
 
 class SSBJ_MDA(Group):
     """
@@ -40,7 +39,7 @@ class SSBJ_MDA(Group):
         sap_group = Group()
         sap_group.add_subsystem('Structure', Structure(self.scalers), promotes=['*'])
         sap_group.add_subsystem('Aerodynamics', Aerodynamics(self.scalers), promotes=['*'])
-        sap_group.add_subsystem('Propulsion',Propulsion(self.scalers),promotes=['*'])
+        sap_group.add_subsystem('Propulsion', Propulsion(self.scalers),promotes=['*'])
 
         sap_group.nonlinear_solver = NonlinearBlockGS()
         sap_group.nonlinear_solver.options['atol'] = 1.0e-3
@@ -89,10 +88,11 @@ def init_ssbj_mda():
 
     # Mean point is chosen for the design variables
     scalers = {}
-    scalers['z']=np.array([0.05,45000.,1.6,5.5,55.0,1000.0])
-    scalers['x_aer']=1.0
-    scalers['x_str']=np.array([0.25,1.0])
-    scalers['x_pro']=0.5
+    #scalers['z'] = np.array([0.06, 60000., 1.4, 2.475, 69.85, 1500.0])  # optimum
+    scalers['z'] = np.array([0.05, 45000., 1.6, 5.500, 55.00, 1000.0])  # start point
+    scalers['x_aer']=1.#0.75
+    scalers['x_str']=np.array([.25, 1.])#np.array([0.28959593,0.75])
+    scalers['x_pro']=.5#0.15621093
 
     # Others variables are unknowns for the moment so Scale=1.0
     scalers['WT']=1.0
@@ -136,11 +136,10 @@ def init_ssbj_mda():
 
     prob.run_driver()
 
-    #Uptade the scalers dictionary
-    for key in iterkeys(scalers):
-        if key not in ['z', 'x_str', 'x_pro']:
+    #Update the scalers dictionary
+    for key in scalers.iterkeys():
+        if key not in ['z', 'x_str', 'x_aer', 'x_pro']:
             scalers[key] = prob[key]
-
     return scalers
 
 

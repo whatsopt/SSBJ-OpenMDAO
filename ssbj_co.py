@@ -3,7 +3,7 @@ SSBJ test case - http://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/1998023465
 Python implementation and OpenMDAO integration developed by
 Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 Collaborative Optimization (CO) strategy optimization and postprocessing scripts
-developed by Imco van Gent of TU Delft, Faculty of Aerospace Engineering
+developed by Imco van Gent of TU Delft, Faculty of Aerospace Engineering.
 """
 import datetime
 
@@ -136,7 +136,7 @@ class SubOpt(ExplicitComponent):
             p.model.add_design_var('x_str', lower=np.array([0.4, 0.75]), upper=np.array([1.6, 1.25]))
             p.model.add_design_var('z_hat_str', lower=np.array([0.2, 0.45, 0.72, 0.5]),
                                    upper=np.array([1.8, 1.45, 1.27, 1.5]),
-                                   indices=[0,3,4,5])
+                                   indices=[0, 3, 4, 5])
 
             # Add objective
             p.model.add_objective('J.J')
@@ -371,8 +371,8 @@ class SubOpt(ExplicitComponent):
 
             # Add design variables
             p.model.add_design_var('x_pro', lower=0.18, upper=1.81)
-            p.model.add_design_var('z_hat_pro', lower=np.array([0.2, 0.666, 0.875, 0.45, 0.72, 0.5]),
-                                   upper=np.array([1.8, 1.333, 1.125, 1.45, 1.27, 1.5]),
+            p.model.add_design_var('z_hat_pro', lower=np.array([0.666, 0.875]),
+                                   upper=np.array([1.333, 1.125]),
                                    indices=[1,2])
 
             # Add objective

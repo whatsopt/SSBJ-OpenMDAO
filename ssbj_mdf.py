@@ -94,6 +94,11 @@ if __name__=='__main__':
 
     # Check R =~ 3964Nm
     R = float(prob['R']*scalers['R'])
+
+    for key in scalers.iterkeys():
+        if key not in ['z', 'x_str', 'x_pro']:
+            print('{}: {} (scaler: {}, value: {})'.format(key, scalers[key]*prob[key], scalers[key], prob[key]))
+
     assert(R > 3963.)
     assert(R < 3965.)
     # from openmdao.devtools.problem_viewer.problem_viewer import view_model
