@@ -137,7 +137,7 @@ def init_ssbj_mda():
     prob.run_driver()
 
     #Update the scalers dictionary
-    for key in scalers.iterkeys():
+    for key in iterkeys(scalers):
         if key not in ['z', 'x_str', 'x_aer', 'x_pro']:
             scalers[key] = prob[key]
     return scalers

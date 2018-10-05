@@ -6,6 +6,7 @@ Collaborative Optimization (CO) strategy optimization and postprocessing scripts
 developed by Imco van Gent of TU Delft, Faculty of Aerospace Engineering.
 """
 import datetime
+import math
 
 from openmdao.api import *
 
@@ -33,14 +34,14 @@ class SubOpt(ExplicitComponent):
     def setup(self):
         if self.options['discipline'] == 'structures':
             # Add system-level inputs
-            self.add_input('z', val=np.array([1.2,1.0,1.0,1.0,1.0,1.0]))
+            self.add_input('z', val=np.array([1.0,1.0,1.0,1.0,1.0,1.0]))
             self.add_input('WE_hat', val=1.0)
             self.add_input('WF_hat', val=1.0)
             self.add_input('Theta_hat', val=1.0)
             self.add_input('WT_hat', val=1.0)
 
             # Add system-level outputs
-            self.add_output('z_hat_str', val=np.array([1.2,1.0,1.0,1.0,1.0,1.0]))
+            self.add_output('z_hat_str', val=np.array([1.0,1.0,1.0,1.0,1.0,1.0]))
             self.add_output('WF', val=1.0)
             self.add_output('Theta', val=1.0)
             self.add_output('WT', val=1.0)
@@ -69,7 +70,7 @@ class SubOpt(ExplicitComponent):
 
             # Define design variables of subproblem
             des_vars = p.model.add_subsystem('des_vars', IndepVarComp(), promotes=['*'])
-            des_vars.add_output('z_hat_str', val=np.array([1.2,1.0,1.0,1.0,1.0,1.0]))
+            des_vars.add_output('z_hat_str', val=np.array([1.0,1.0,1.0,1.0,1.0,1.0]))
             des_vars.add_output('x_str', val=np.array([1.6, 0.75]))
 
             # Define components
@@ -115,7 +116,7 @@ class SubOpt(ExplicitComponent):
                 p.driver = ScipyOptimizeDriver()
                 p.driver.options['optimizer'] = 'SLSQP'
                 p.driver.options['maxiter'] = 100
-                p.driver.options['tol'] = 1e-8
+                p.driver.options['tol'] = 1e-6
             elif isinstance(self.options['driver'], pyOptSparseDriver):
                 p.driver = pyOptSparseDriver()
                 p.driver.options['optimizer'] = 'SLSQP'
@@ -236,7 +237,7 @@ class SubOpt(ExplicitComponent):
                 p.driver = ScipyOptimizeDriver()
                 p.driver.options['optimizer'] = 'SLSQP'
                 p.driver.options['maxiter'] = 100
-                p.driver.options['tol'] = 1e-8
+                p.driver.options['tol'] = 1e-6
             elif isinstance(self.options['driver'], pyOptSparseDriver):
                 p.driver = pyOptSparseDriver()
                 p.driver.options['optimizer'] = 'SLSQP'
@@ -352,13 +353,13 @@ class SubOpt(ExplicitComponent):
                 p.driver = ScipyOptimizeDriver()
                 p.driver.options['optimizer'] = 'SLSQP'
                 p.driver.options['maxiter'] = 100
-                p.driver.options['tol'] = 1e-8
+                p.driver.options['tol'] = 1e-6
             elif isinstance(self.options['driver'], pyOptSparseDriver):
                 p.driver = pyOptSparseDriver()
                 p.driver.options['optimizer'] = 'SLSQP'
                 p.driver.opt_settings['MAXIT'] = 100
                 p.driver.opt_settings['ACC'] = 1e-6
-            # p.driver.options['debug_print'] = ['desvars', 'objs', 'nl_cons']
+            #p.driver.options['debug_print'] = ['desvars', 'objs', 'nl_cons']
 
             # Set recording options
             recorder = SqliteRecorder(os.path.join('files', 'ssbj_cr_{}_subsystem_pro.sql'.format(cr_files_key_word)))
@@ -379,7 +380,7 @@ class SubOpt(ExplicitComponent):
             p.model.add_objective('J.J')
 
             # Add constraints
-            p.model.add_constraint('constraints.con_esf', upper=0.0, lower=-1.)
+            p.model.add_constraint('constraints.con_esf', upper=0.0, lower=-1.)  # TODO: Turn off to avoid issues
             p.model.add_constraint('constraints.con_temp', upper=0.0)
             p.model.add_constraint('constraints.con_dt', upper=0.0)
 
@@ -388,7 +389,7 @@ class SubOpt(ExplicitComponent):
             p.final_setup()
 
             # View model
-            view_model(p, outfile=os.path.join('files', 'co_prop.html'), show_browser=False)
+            view_model(p, outfile=os.path.join('files', 'co_n2_prop.html'), show_browser=False)
         else:
             raise IOError('Unknown discipline {} provided in setup function.'.format(self.options['discipline']))
 
@@ -446,6 +447,10 @@ class SubOpt(ExplicitComponent):
             outputs['ESF'] = p['propulsion.ESF']
             outputs['SFC'] = p['propulsion.SFC']
             outputs['WE'] = p['propulsion.WE']
+
+            if math.isnan(p['z_hat_pro'][1]):
+                print('NaN encountered!')
+
         else:
             raise IOError('Unknown discipline {} provided in setup function.'.format(self.options['discipline']))
 
@@ -529,12 +534,13 @@ if __name__ == '__main__':
     if isinstance(subopt_driver, ScipyOptimizeDriver):
         prob.driver = pyOptSparseDriver()
         prob.driver.options['optimizer'] = 'SLSQP'
-        prob.driver.opt_settings['ACC'] = 1e-4
+        prob.driver.opt_settings['ACC'] = 1e-3
+        prob.driver.opt_settings['MAXIT'] = 200
     elif isinstance(subopt_driver, pyOptSparseDriver):
         prob.driver = ScipyOptimizeDriver()
         prob.driver.options['optimizer'] = 'SLSQP'
-        prob.driver.options['maxiter'] = 100
-        prob.driver.options['tol'] = 1e-4
+        prob.driver.options['maxiter'] = 200
+        prob.driver.options['tol'] = 1e-3
     prob.driver.options['debug_print'] = ['desvars', 'ln_cons', 'nl_cons', 'objs']
 
     # Set design variables
@@ -542,7 +548,7 @@ if __name__ == '__main__':
                               upper=np.array([1.8, 1.333, 1.125, 1.45, 1.27, 1.5]))
 
     # Add some logical, though conservative, bounds to the coupling variables that have become design variables
-    des_vars_def = {'D_hat':[1000, 15000],
+    des_vars_def = {'D_hat':[2500, 15000],      # The lower bound on drag is essential for problems in the optimizer
                     'WE_hat': [0, 20000],
                     'WT_hat': [20000, 60000],
                     'Theta_hat': [0.96, 1.04],
