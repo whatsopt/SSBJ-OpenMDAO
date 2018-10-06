@@ -36,7 +36,7 @@ install:
   - conda create --yes -n PY$PY python=$PY;
   - source $HOME/miniconda/bin/activate PY$PY;
 
-  - conda install --yes numpy scipy
+  - conda install --yes numpy scipy swig
 
   - pip install --upgrade pip;
   - pip install openmdao==2.4
