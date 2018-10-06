@@ -1,0 +1,47 @@
+branches:
+  only:
+    - master
+
+sudo: required
+
+os:
+  - linux
+
+language: generic
+
+env:
+- PY=2.7
+- PY=3.6
+
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - gfortran
+    - libblas-dev
+    - liblapack-dev
+    - libopenmpi-dev
+    - openmpi-bin
+    - gcc-5
+    - g++-5
+
+install:
+  - conda create --yes -n PY$PY python=$PY;
+  - source $HOME/miniconda/bin/activate PY$PY;
+
+  - conda install --yes numpy=$NUMPY scipy=$SCIPY cython swig nose sphinx mock;
+
+  - pip install --upgrade pip;
+  - pip install openmdao==2.4
+
+  - git clone https://github.com/OpenMDAO/pyoptsparse.git;
+  - cd pyoptsparse;
+  - python setup.py install;
+  - cd ..;
+
+  # display summary of installed packages and their versions
+  - conda list
+
+script:
+  - python ssbj_mdf.py
