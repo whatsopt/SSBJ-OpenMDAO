@@ -51,3 +51,6 @@ install:
 
 script:
   - python ssbj_mdf.py
+  - python ssbj_idf.py
+  - python ssbj_co.py
+  - python ssbj_bliss2000.py
