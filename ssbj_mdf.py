@@ -4,6 +4,7 @@ Python implementation and OpenMDAO integration developed by
 Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 """
 from __future__ import print_function
+import six
 from sys import argv
 import re
 import numpy as np
@@ -95,7 +96,7 @@ if __name__=='__main__':
     # Check R =~ 3964Nm
     R = float(prob['R']*scalers['R'])
 
-    for key in scalers.iterkeys():
+    for key in six.iterkeys(scalers):
         if key not in ['z', 'x_str', 'x_pro']:
             print('{}: {} (scaler: {}, value: {})'.format(key, scalers[key]*prob[key], scalers[key], prob[key]))
 
