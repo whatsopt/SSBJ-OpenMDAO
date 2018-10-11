@@ -40,7 +40,8 @@ install:
   - pip install --upgrade pip;
   - pip install openmdao==2.4
 
-  - git clone https://github.com/OpenMDAO/pyoptsparse.git;
+#  - git clone https://github.com/OpenMDAO/pyoptsparse.git;
+  - git clone https://github.com/mdolab/pyoptsparse.git;
   - cd pyoptsparse;
   - python setup.py install;
   - cd ..;
