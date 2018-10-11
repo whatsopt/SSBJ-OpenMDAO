@@ -100,8 +100,8 @@ if __name__=='__main__':
         if key not in ['z', 'x_str', 'x_pro']:
             print('{}: {} (scaler: {}, value: {})'.format(key, scalers[key]*prob[key], scalers[key], prob[key]))
 
-    assert(R > 3963.)
-    assert(R < 3965.)
+    assert(R > 3960.)
+    assert(R < 3970.)
     # from openmdao.devtools.problem_viewer.problem_viewer import view_model
     # view_model(prob)
 

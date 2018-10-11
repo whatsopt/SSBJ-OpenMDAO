@@ -1215,4 +1215,7 @@ if __name__ == '__main__':
             print('BLISS loops never converged. Terminated optimization because maximum BLISS iterations of {} '
                   'has been reached.'.format(MAX_LOOPS))
 
+    R = float(sys_problems[l]['performance.R']*scalers[R])
+    assert(R > 3960.)
+    assert(R < 3970.)
     print('Reached end of script.')

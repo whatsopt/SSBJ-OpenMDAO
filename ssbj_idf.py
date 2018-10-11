@@ -111,8 +111,8 @@ if "--plot" in argv:
 
 # Check R =~ 3964Nm
 R = float(-prob['obj']*scalers['R'])
-assert(R > 3963.)
-assert(R < 3965.)
+assert(R > 3960.)
+assert(R < 3970.)
 # from openmdao.devtools.problem_viewer.problem_viewer import view_model
 # view_model(prob)
 

@@ -10,7 +10,6 @@ os:
 language: generic
 
 env:
-- PY=2.7
 - PY=3.6
 
 addons:
