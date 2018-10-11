@@ -1,8 +1,8 @@
 # SSBJ-OpenMDAO
-SSBJ test case solved by MDF, IDF and CO MDO formulations with OpenMDAO 2.x.
+[SSBJ test case](https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19980234657.pdf) solved by MDF, IDF, CO and BLISS 2000 MDO formulations with OpenMDAO 2.x.
 
 # Installation
-* Python 2.7
+* Python>=3.6
 * Install [OpenMDAO>=2.4](https://github.com/OpenMDAO/OpenMDAO) 
 * Install [pyOptSparse](https://github.com/mdolab/pyoptsparse)
 * Clone the project
