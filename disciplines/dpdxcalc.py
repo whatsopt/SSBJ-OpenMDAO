@@ -7,7 +7,7 @@ from __future__ import print_function
 import numpy as np
 
 from openmdao.api import ExplicitComponent
-from common import PolynomialFunction
+from .common import PolynomialFunction
 
 
 def dpdx_constraint(pf, Z0):
