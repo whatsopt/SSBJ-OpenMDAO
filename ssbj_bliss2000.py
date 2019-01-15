@@ -36,8 +36,7 @@ CONV_REL_TOL = 1e-3              # Relative convergence tolerance for BLISS iter
 LHS_SEED = 4                     # Seed of the Latin Hypercube Sampling algorithm
 
 # BLISS design variables interval adjustment settings
-F_INT_RED = 0.1                  # interval_reduction: percentage of interval reduction
-F_K_RED = 3.0                    # K_bound_reduction: K-factor reduction
+F_K_RED = 2.0                    # K_bound_reduction: K-factor reduction
 F_INT_INC = 0.25                 # interval increase: percentage of interval increase if bound is hit
 F_INT_INC_ABS = 0.1              # absolute interval increase: minimum increase if percentual increase is too low
 F_INT_RANGE = 1.e-3              # minimal range of the design variable interval
@@ -633,7 +632,7 @@ def set_initial_values(start_type, cr_file_folder_name='files', cr_file_key_word
         z_sh_max = copy.deepcopy(z_sh_upper)
 
         # Set coupling values and bounds
-        # Add some logical, though conservative, bounds to the coupling variables that have become design variables
+        # Add some logi cal, though conservative, bounds to the coupling variables that have become design variables
         z_c_def = OrderedDict()
         z_c_def['D'] = [1000, 15000, 0, np.inf]  # 0
         z_c_def['WE'] = [0, 20000, 0, np.inf]  # 1
@@ -655,9 +654,10 @@ def set_initial_values(start_type, cr_file_folder_name='files', cr_file_key_word
                    'w_ESF',  # 4
                    'w_L']  # 5
         # Variables
-        z_w = np.array([2., 1., 1., 1., 1., 2.])
-        z_w_lower = np.array([0., -2., -2., -2., -2., 0.])
-        z_w_upper = np.array([4., 2., 2., 2., 2., 4.])
+        z_w = np.array([1., 1., 1., 1., 1., 1.])
+        z_w_lower = np.array([-2., -2., -2., -2., -2., -2.])
+        z_w_upper = np.array([2., 2., 2., 2., 2., 2.])
+
         # Also set absolute minimum and maximum values of design variables
         z_w_min = -np.ones(len(z_w_def)) * np.inf
         z_w_max = np.ones(len(z_w_def)) * np.inf
@@ -687,12 +687,12 @@ def set_initial_values(start_type, cr_file_folder_name='files', cr_file_key_word
         # Set coupling values and bounds
         # Add some logical, though conservative, bounds to the coupling variables that have become design variables
         z_c_def = OrderedDict()
-        z_c_def['D'] = [1000, 15000, 0, np.inf]  # 0
-        z_c_def['WE'] = [0, 20000, 0, np.inf]  # 1
-        z_c_def['WT'] = [20000, 60000, 0, np.inf]  # 2
+        z_c_def['D'] = [1000., 15000., 0., np.inf]  # 0
+        z_c_def['WE'] = [0., 20000., 0., np.inf]  # 1
+        z_c_def['WT'] = [20000., 60000., 0., np.inf]  # 2
         z_c_def['Theta'] = [0.96, 1.04, 0.96, 1.04]  # 3
         z_c_def['ESF'] = [0.5, 1.5, 0.5, 1.5]  # 4
-        z_c_def['L'] = [20000, 60000, 0, np.inf]  # 5
+        z_c_def['L'] = [20000., 60000., 0., np.inf]  # 5
         z_c = des_vars_c
         z_c_lower = des_vars_list[n_loop]['z_c']['lower']
         z_c_upper = des_vars_list[n_loop]['z_c']['upper']
@@ -901,10 +901,7 @@ def run_system_optimization(des_vars, subsystems, scalers, loop_number):
     prob.driver = pyOptSparseDriver()
     prob.driver.options['optimizer'] = 'SLSQP'
     prob.driver.opt_settings['MAXIT'] = 50
-    if loop_number < 4:
-        prob.driver.opt_settings['ACC'] = 1e-3
-    else:
-        prob.driver.opt_settings['ACC'] = 1e-6
+    prob.driver.opt_settings['ACC'] = 1e-6
 
     # Add design variables
     for des_var, details in des_vars.items():
@@ -939,7 +936,6 @@ def run_system_optimization(des_vars, subsystems, scalers, loop_number):
     view_model(prob, outfile=os.path.join(cr_files_folder, 'bliss2000_sys_ssbj.html'), show_browser=False)
 
     # Run problem (either once (run_model) or full optimization (run_driver))
-    #prob.run_model()
     prob.run_driver()
 
     # Report result in the log

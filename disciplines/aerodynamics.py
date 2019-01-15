@@ -75,7 +75,6 @@ class Aerodynamics(ExplicitComponent):
         outputs['fin'] = fin/self.scalers['fin']
         outputs['dpdx'] = dpdx/self.scalers['dpdx']
 
-
     def compute_partials(self, inputs, partials):
 
         Z = inputs['z']*self.scalers['z']
