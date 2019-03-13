@@ -11,10 +11,10 @@ from openmdao.api import ExecComp, IndepVarComp
 from openmdao.api import Group, Problem
 from openmdao.api import NonlinearBlockGS, ScipyKrylov
 
-from disciplines.aerodynamics import Aerodynamics
-from disciplines.performance import Performance
-from disciplines.propulsion import Propulsion
-from disciplines.structure import Structure
+from ssbj_disciplines.aerodynamics import Aerodynamics
+from ssbj_disciplines.performance import Performance
+from ssbj_disciplines.propulsion import Propulsion
+from ssbj_disciplines.structure import Structure
 
 class SSBJ_MDA(Group):
     """

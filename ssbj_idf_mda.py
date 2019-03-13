@@ -6,10 +6,10 @@ Sylvain Dubreuil and Remi Lafage of ONERA, the French Aerospace Lab.
 import numpy as np
 from openmdao.api import Group, ExecComp, IndepVarComp
 
-from disciplines.aerodynamics import Aerodynamics
-from disciplines.performance import Performance
-from disciplines.propulsion import Propulsion
-from disciplines.structure import Structure
+from ssbj_disciplines.aerodynamics import Aerodynamics
+from ssbj_disciplines.performance import Performance
+from ssbj_disciplines.propulsion import Propulsion
+from ssbj_disciplines.structure import Structure
 # pylint: disable=C0103
 
 class SSBJ_IDF_MDA(Group):

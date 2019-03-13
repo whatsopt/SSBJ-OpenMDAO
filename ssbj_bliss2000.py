@@ -15,11 +15,11 @@ from openmdao.api import *
 
 import numpy as np
 
-from disciplines.aerodynamics import Aerodynamics
-from disciplines.performance import Performance
-from disciplines.propulsion import Propulsion
-from disciplines.structure import Structure
-from disciplines.dpdxcalc import DpdxCalc
+from ssbj_disciplines.aerodynamics import Aerodynamics
+from ssbj_disciplines.performance import Performance
+from ssbj_disciplines.propulsion import Propulsion
+from ssbj_disciplines.structure import Structure
+from ssbj_disciplines.dpdxcalc import DpdxCalc
 
 from ssbj_mda import init_ssbj_mda
 
