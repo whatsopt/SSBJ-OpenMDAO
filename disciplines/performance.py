@@ -16,6 +16,7 @@ def performance(Z, fin, SFC, WT, WF):
     R = 661.0*np.sqrt(theta)*Z[2]*fin/SFC*np.log(abs(WT/(WT-WF)))
     return R
 
+
 class Performance(ExplicitComponent):
 
     def __init__(self, scalers):
@@ -76,6 +77,7 @@ class Performance(ExplicitComponent):
         J['R', 'WT'] = np.array([[dRdWT/self.scalers['R']*self.scalers['WT']]])
         dRdWF = 661.0*np.sqrt(theta)*Z[2]*fin/SFC*1.0/(WT-WF)
         J['R', 'WF'] = np.array([[dRdWF/self.scalers['R']*self.scalers['WF']]])
+
 
 if __name__ == "__main__": # pragma: no cover
 

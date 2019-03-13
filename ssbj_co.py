@@ -122,7 +122,7 @@ class SubOpt(ExplicitComponent):
                 p.driver.options['optimizer'] = 'SLSQP'
                 p.driver.opt_settings['MAXIT'] = 100
                 p.driver.opt_settings['ACC'] = 1e-6
-            # p.driver.options['debug_print'] = ['desvars', 'objs']
+            #p.driver.options['debug_print'] = ['desvars', 'objs', 'nl_cons']
 
             # Set recording options
             recorder = SqliteRecorder(os.path.join('files', 'ssbj_cr_{}_subsystem_str.sql'.format(cr_files_key_word)))
@@ -243,7 +243,7 @@ class SubOpt(ExplicitComponent):
                 p.driver.options['optimizer'] = 'SLSQP'
                 p.driver.opt_settings['MAXIT'] = 100
                 p.driver.opt_settings['ACC'] = 1e-6
-            # p.driver.options['debug_print'] = ['desvars', 'objs', 'nl_cons']
+            #p.driver.options['debug_print'] = ['desvars', 'objs', 'nl_cons']
 
             # Set recording options
             recorder = SqliteRecorder(os.path.join('files', 'ssbj_cr_{}_subsystem_aer.sql'.format(cr_files_key_word)))
@@ -447,10 +447,6 @@ class SubOpt(ExplicitComponent):
             outputs['ESF'] = p['propulsion.ESF']
             outputs['SFC'] = p['propulsion.SFC']
             outputs['WE'] = p['propulsion.WE']
-
-            if math.isnan(p['z_hat_pro'][1]):
-                print('NaN encountered!')
-
         else:
             raise IOError('Unknown discipline {} provided in setup function.'.format(self.options['discipline']))
 

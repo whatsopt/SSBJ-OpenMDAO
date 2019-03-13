@@ -144,7 +144,7 @@ if __name__ == "__main__": # pragma: no cover
     scalers['DT'] = 0.278366
     scalers['D'] = 12193.7018
     top = Problem()
-    top.model.add_subsystem('z_in', IndepVarComp('z', np.array([1.2  ,  1.333,  0.875,  0.45 ,  1.27 ,  1.5])),
+    top.model.add_subsystem('z_in', IndepVarComp('z', np.array([1.2,  1.333,  0.875,  0.45 ,  1.27 ,  1.5])),
                             promotes=['*'])
     top.model.add_subsystem('x_pro_in', IndepVarComp('x_pro', 0.3126), promotes=['*'])
     top.model.add_subsystem('D_in', IndepVarComp('D', 0.457), promotes=['*'])
