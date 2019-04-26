@@ -94,13 +94,19 @@ def polynomial_function(d, S_new, flag, S_bound, var, deriv=False):
     else:
         return float((Ao + Ai.T * S_shifted.T + 0.5 * S_shifted * Aij * S_shifted.T)[0])
 
+class _PolynomialFunction:
+    _instance = None
 
-class PolynomialFunction(object):
-    d = {}
+    def __init__(self, d={}):
+        self.d = d
 
     def __call__(self, S_new, flag, S_bound, var, deriv=False):
         return polynomial_function(self.d, S_new, flag, S_bound, var, deriv) 
 
+def PolynomialFunction(d={}):
+    if _PolynomialFunction._instance is None:
+        _PolynomialFunction._instance = _PolynomialFunction(d)
+    return _PolynomialFunction._instance
 
 if __name__ == '__main__':
 

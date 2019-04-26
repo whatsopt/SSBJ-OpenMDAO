@@ -15,6 +15,7 @@ from ssbj_disciplines.aerodynamics import Aerodynamics
 from ssbj_disciplines.performance import Performance
 from ssbj_disciplines.propulsion import Propulsion
 from ssbj_disciplines.structure import Structure
+from ssbj_disciplines.common import PolynomialFunction
 
 class SSBJ_MDA(Group):
     """
@@ -123,6 +124,8 @@ def init_ssbj_mda():
             scalers[key] = prob[key]
     return scalers
 
+def get_initial_state():
+    return init_ssbj_mda(), PolynomialFunction().d
 
 if __name__ == "__main__":
     scalers = init_ssbj_mda()

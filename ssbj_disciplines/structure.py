@@ -45,9 +45,9 @@ class Structure(ExplicitComponent):
 
     def setup(self):
         # Global Design Variable z=(t/c,h,M,AR,Lambda,Sref)
-        self.add_input('z', val=np.zeros(6))
+        self.add_input('z', val=np.ones(6))
         # Local Design Variable x_str=(lambda,section caisson)
-        self.add_input('x_str', val=np.zeros(2))
+        self.add_input('x_str', val=np.ones(2))
         # Coupling parameters
         self.add_input('L', val=1.0)
         self.add_input('WE', val=1.0)
@@ -55,7 +55,7 @@ class Structure(ExplicitComponent):
         self.add_output('WT', val=1.0)
         self.add_output('Theta', val=1.0)
         self.add_output('WF', val=1.0)
-        self.add_output('sigma', val=np.zeros(5))
+        self.add_output('sigma', val=np.ones(5))
         self.declare_partials('*', '*')
 
     def compute(self, inputs, outputs):
@@ -63,7 +63,6 @@ class Structure(ExplicitComponent):
         x_str = inputs['x_str']*self.scalers['x_str']
         L = inputs['L']*self.scalers['L']
         WE = inputs['WE']*self.scalers['WE']
-
         Theta, WF, WT, sigma = structure(self.pf, x_str, Z, L, WE)
 
         #Unknowns
