@@ -6,6 +6,7 @@ BLISS-2000 strategy optimization and postprocessing scripts
 developed by Imco van Gent of TU Delft, Faculty of Aerospace Engineering.
 """
 import copy
+import sys
 import pickle
 import math
 import warnings
@@ -1506,6 +1507,7 @@ if __name__ == "__main__":
             )
 
     R = float(sys_problems[l]["performance.R"] * scalers["R"])
+    # BLISS2000 do not reach exactly expected solution
     # assert(R > 3960.)
     assert R > 3600.0
     assert R < 3970.0
