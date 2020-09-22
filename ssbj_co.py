@@ -131,7 +131,7 @@ class SubOpt(ExplicitComponent):
             p.driver.recording_options['record_objectives'] = True
             p.driver.recording_options['record_constraints'] = True
             p.driver.recording_options['record_desvars'] = True
-            p.driver.recording_options['record_metadata'] = True
+            # p.driver.recording_options['record_metadata'] = True
 
             # Add design variables
             p.model.add_design_var('x_str', lower=np.array([0.4, 0.75]), upper=np.array([1.6, 1.25]))
@@ -154,8 +154,8 @@ class SubOpt(ExplicitComponent):
             p.setup()
             p.final_setup()
 
-            # View model
-            view_model(p, outfile=os.path.join('files', 'co_n2_struc.html'), show_browser=False)
+            # n2 model
+            n2(p, outfile=os.path.join('files', 'co_n2_struc.html'), show_browser=False)
 
         elif self.options['discipline'] == 'aerodynamics':
             # Add system-level inputs (N.B. L_hat is not used, instead L_hat = W_hat is assumed)
@@ -252,7 +252,7 @@ class SubOpt(ExplicitComponent):
             p.driver.recording_options['record_objectives'] = True
             p.driver.recording_options['record_constraints'] = True
             p.driver.recording_options['record_desvars'] = True
-            p.driver.recording_options['record_metadata'] = True
+            # p.driver.recording_options['record_metadata'] = True
 
             # Add design variables
             p.model.add_design_var('x_aer', lower=0.75, upper=1.25)
@@ -269,8 +269,8 @@ class SubOpt(ExplicitComponent):
             p.setup()
             p.final_setup()
 
-            # View model
-            view_model(p, outfile=os.path.join('files', 'co_n2_aero.html'), show_browser=False)
+            # n2 model
+            n2(p, outfile=os.path.join('files', 'co_n2_aero.html'), show_browser=False)
         elif self.options['discipline'] == 'propulsion':
             # Add system-level inputs
             self.add_input('z', val=np.ones(6))
@@ -368,7 +368,7 @@ class SubOpt(ExplicitComponent):
             p.driver.recording_options['record_objectives'] = True
             p.driver.recording_options['record_constraints'] = True
             p.driver.recording_options['record_desvars'] = True
-            p.driver.recording_options['record_metadata'] = True
+            # p.driver.recording_options['record_metadata'] = True
 
             # Add design variables
             p.model.add_design_var('x_pro', lower=0.18, upper=1.81)
@@ -388,8 +388,8 @@ class SubOpt(ExplicitComponent):
             p.setup()
             p.final_setup()
 
-            # View model
-            view_model(p, outfile=os.path.join('files', 'co_n2_prop.html'), show_browser=False)
+            # n2 model
+            n2(p, outfile=os.path.join('files', 'co_n2_prop.html'), show_browser=False)
         else:
             raise IOError('Unknown discipline {} provided in setup function.'.format(self.options['discipline']))
 
@@ -570,13 +570,13 @@ if __name__ == '__main__':
     prob.driver.recording_options['record_objectives'] = True
     prob.driver.recording_options['record_constraints'] = True
     prob.driver.recording_options['record_desvars'] = True
-    prob.driver.recording_options['record_metadata'] = True
+    # prob.driver.recording_options['record_metadata'] = True
 
     # Setup
     prob.setup(mode='rev')
 
-    # View model
-    view_model(prob, outfile=os.path.join('files', 'co_sys_ssbj.html'), show_browser=False)
+    # n2 model
+    n2(prob, outfile=os.path.join('files', 'co_sys_ssbj.html'), show_browser=False)
 
     # Check partials
     # prob.check_partials(compact_print=True)

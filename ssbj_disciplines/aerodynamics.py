@@ -24,7 +24,7 @@ def aerodynamics(pf, x_aer, Z, WT, ESF, Theta):
             * abs(np.cos(Z[4]*np.pi/180.0))**1.5
     if Z[2] >= 1:
         k = abs(Z[3]) * (abs(Z[2])**2-1.0) * np.cos(Z[4]*np.pi/180.) \
-        / (4.* abs(Z[3])* np.sqrt(abs(Z[4]**2 - 1.) - 2.))
+        / (4.* abs(Z[3])* np.sqrt(abs(Z[4]**2 - 1.)) - 2.)
     else:
         k = (0.8 * np.pi * abs(Z[3]))**-1
 
